@@ -18,7 +18,7 @@ Stability of Vaginal microbiota during pregnancy and its importance for early in
     -   [ALL - Compare weighted Ratios between c-section and vaginal birth at each timepoint](#all---compare-weighted-ratios-between-c-section-and-vaginal-birth-at-each-timepoint)
         -   [Table 1 - testable OTU's](#table-1---testable-otus)
         -   [Figure S3 - vaginal delivery](#figure-s3---vaginal-delivery)
-        -   [Figure S4 - sectio delivery](#figure-s4---sectio-delivery)
+        -   [Sectio delivery](#sectio-delivery)
     -   [Weighted Odds Ratio](#weighted-odds-ratio)
         -   [OVERALL ratio between positive and negative odds](#overall-ratio-between-positive-and-negative-odds)
         -   [Weigted Transfer Ratios](#weigted-transfer-ratios)
@@ -1319,10 +1319,6 @@ print(G1)
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-19-1.png" style="display: block; margin: auto;" />
 
 ``` r
-# pdf('FigureS3.pdf', height = 13, width = 13)
-# G1
-# dev.off()
-
 tb <- STATtot %>%
   # filter(time==7) %>%
   filter(delivery %in% c('norm','csec')) %>%
