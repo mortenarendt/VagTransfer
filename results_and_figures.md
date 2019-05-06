@@ -179,34 +179,38 @@ df4$taxprc <- 100*df4$taxSum/sum(df4$taxSum)
 # Top 3 dominating phyla prc reads "Firmicutes (85.0%), Acinobacteria (11.8%) and Proteobacteria (2.0%)"
 kable(head(df2[order(df2$taxSum,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to phylym')
 ```
+**Table** -  Distribution of reads according to phylym
 
-| Kingdom  | Phylum         | Class | Order | Family | Genus | Species |    taxSum|  taxprc|
-|:---------|:---------------|:------|:------|:-------|:------|:--------|---------:|-------:|
-| Bacteria | Firmicutes     | NA    | NA    | NA     | NA    | NA      |  61399510|    86.5|
-| Bacteria | Actinobacteria | NA    | NA    | NA     | NA    | NA      |   7696802|    10.8|
-| Bacteria | Proteobacteria | NA    | NA    | NA     | NA    | NA      |   1128017|     1.6|
-| Bacteria | Bacteroidetes  | NA    | NA    | NA     | NA    | NA      |    505046|     0.7|
-| Bacteria | Fusobacteria   | NA    | NA    | NA     | NA    | NA      |    125943|     0.2|
-| Bacteria | Tenericutes    | NA    | NA    | NA     | NA    | NA      |     85439|     0.1|
+| Kingdom  | Phylum         |   taxSum|  taxprc|
+|:---------|:---------------|--------:|-------:|
+| Bacteria | Firmicutes     | 61399510|    86.5|
+| Bacteria | Actinobacteria |  7696802|    10.8|
+| Bacteria | Proteobacteria |  1128017|     1.6|
+| Bacteria | Bacteroidetes  |   505046|     0.7|
+| Bacteria | Fusobacteria   |   125943|     0.2|
+| Bacteria | Tenericutes    |    85439|     0.1|
 
 ``` r
 # Top 2 dominating genus prc reads "Lactobacillus (78.5%) and Gardnerella (8.7%)"
 kable(head(df3[order(df3$taxSum,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to genus')
 ```
 
-| Kingdom  | Phylum         | Class               | Order             | Family             | Genus                      | Species |    taxSum|  taxprc|
-|:---------|:---------------|:--------------------|:------------------|:-------------------|:---------------------------|:--------|---------:|-------:|
-| Bacteria | Firmicutes     | Bacilli             | Lactobacillales   | Lactobacillaceae   | Lactobacillus              | NA      |  58162080|    81.9|
-| Bacteria | Actinobacteria | Actinobacteria      | Bifidobacteriales | Bifidobacteriaceae | Gardnerella                | NA      |   5568094|     7.8|
-| Bacteria | Proteobacteria | Gammaproteobacteria | Enterobacteriales | Enterobacteriaceae | Family\_Enterobacteriaceae | NA      |   1004543|     1.4|
-| Bacteria | Actinobacteria | Actinobacteria      | Coriobacteriales  | Coriobacteriaceae  | Atopobium                  | NA      |    927147|     1.3|
-| Bacteria | Actinobacteria | Actinobacteria      | Bifidobacteriales | Bifidobacteriaceae | Bifidobacterium            | NA      |    822452|     1.2|
-| Bacteria | Firmicutes     | Negativicutes       | Selenomonadales   | Veillonellaceae    | Megasphaera                | NA      |    561064|     0.8|
+**Table** - Distribution of reads according to genus.
+
+| Kingdom  | Phylum         | Class               | Order             | Family             | Genus                      |    taxSum|  taxprc|
+|:---------|:---------------|:--------------------|:------------------|:-------------------|:---------------------------|---------:|-------:|
+| Bacteria | Firmicutes     | Bacilli             | Lactobacillales   | Lactobacillaceae   | Lactobacillus              |  58162080|    81.9|
+| Bacteria | Actinobacteria | Actinobacteria      | Bifidobacteriales | Bifidobacteriaceae | Gardnerella                |   5568094|     7.8|
+| Bacteria | Proteobacteria | Gammaproteobacteria | Enterobacteriales | Enterobacteriaceae | Family\_Enterobacteriaceae |   1004543|     1.4|
+| Bacteria | Actinobacteria | Actinobacteria      | Coriobacteriales  | Coriobacteriaceae  | Atopobium                  |    927147|     1.3|
+| Bacteria | Actinobacteria | Actinobacteria      | Bifidobacteriales | Bifidobacteriaceae | Bifidobacterium            |    822452|     1.2|
+| Bacteria | Firmicutes     | Negativicutes       | Selenomonadales   | Veillonellaceae    | Megasphaera                |    561064|     0.8|
 
 ``` r
 # Top 4 Lactobacilli  "The most abundant lactobacilli were L. crispatus (33.3%), L. iners (28.6%), L. gasseri (10.7%), and L. jensenii (4.9%). ""
 kable(head(df4[order(df4$taxSum,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to OTU')
 ```
+**Table** - Distribution of reads according to OTU
 
 | Kingdom  | Phylum         | Class          | Order             | Family             | Genus         | Species                |    taxSum|  taxprc|
 |:---------|:---------------|:---------------|:------------------|:-------------------|:--------------|:-----------------------|---------:|-------:|
@@ -326,6 +330,7 @@ load('./CommunityStateTypes.RData')
 
 kable(tb0, caption = 'Sample Distribution, n: number of samples in CST, n_w_rep: number of samples in CST from women with both timepoints represented, n24 / n36: number of samples from week 24 and 36 respectively')
 ```
+**Supplementary table 1** - Sample Distribution, n: number of samples in CST, n_w_rep: number of samples in CST from women with both timepoints represented, n24 / n36: number of samples from week 24 and 36 respectively.
 
 | CST        |    n|  n\_w\_rep|  n24|  n36|
 |:-----------|----:|----------:|----:|----:|
@@ -342,7 +347,9 @@ kable(tb0, caption = 'Sample Distribution, n: number of samples in CST, n_w_rep:
 kable(tb1m, caption = 'Top five Phylums / Genus / OTUs for each CST', digits = 2)
 ```
 
-| CST        |  rnk| Phylum         |  Phylum\_prc| Genus                      |  Genus\_prc| otu                                 |  OTU\_prc|
+**Supplementary table 2** - : Top five dominating phylum, genus and OUT respectively for each CST. Percentages refers to the total relative abundance of the respective Phylum, Genus or OTU within the given CST. 
+
+| CST        | rank| Phylum         | Phylum (prc)| Genus                      | Genus (prc)| OTU                                 | OTU (prc)|
 |:-----------|----:|:---------------|------------:|:---------------------------|-----------:|:------------------------------------|---------:|
 | CST\_I     |    1| Firmicutes     |        97.85| Lactobacillus              |       95.91| Lactobacillus\_OTU5754              |     83.76|
 | CST\_I     |    2| Actinobacteria |         1.38| Gardnerella                |        1.03| Lactobacillus\_OTU2                 |      6.44|
@@ -399,12 +406,11 @@ print(gAL)
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-6-1.png" 
 alt="Supplementary Figure 1: Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36."
 style="display: block; margin: auto;" />
+**Supplementary Figure 1:** Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36. 
 
-** Supplementary Figure 1: ** Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36. 
 
-
-Ordination of of vag samples with CTS and timepoints
-----------------------------------------------------
+Ordination of of vaginal samples with CTS and timepoints
+--------------------------------------------------------
 
 ``` r
 load('./vag_taxglm.RData')
@@ -470,6 +476,7 @@ print(G1)
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-8-1.png" 
 alt="PCoA plot of the first four components of the vaginal microbiome by Jensen Shannon divergence (JSD). Women are connected by lines. Colors reflect Community State Types (CST)." 
 style="display: block; margin: auto;" />
+**Supplementary Figure 2:** PCoA plot of the first four components of the vaginal microbiome by Jensen Shannon divergence (JSD). Women are connected by lines. Colors reflect Community State Types (CST).
 
 Stability between w24 and w36
 -----------------------------
@@ -594,8 +601,9 @@ ttb2 <- ttb %>%
   summarise(n = sum(n_insame), 
             prc = 100*n / ntot)
 
-kable(ttb2,caption = 'overall stability descriptives from week 24 and w 36 dependent', digits = 1)
+kable(ttb2,caption = 'overall stability descriptives from week 24 and w 36', digits = 1)
 ```
+**Table** - Overall stability in terms of percentage of samples in the same CST at week 36 as at week 24. 
 
 |    n|   prc|
 |----:|-----:|
@@ -604,21 +612,17 @@ kable(ttb2,caption = 'overall stability descriptives from week 24 and w 36 depen
 ``` r
 kable(ttb,caption = 'CST descriptives from week 24 and w 36 dependent', digits = 1)
 ```
+**Supplementary Table 3** - CST descriptives from week 24 to week 36. 
+**n_24**: CST at gestational week 24. **n_insame**: Number of women having the same CST at gestational week 36 as week 24. **prc_insame**: Percent of women having the same CST at gestational week 36. **stat_pair**: CSTs with the same letter have a statistical similar ratio of women changing to another CST (χ2 p-value > 0.05).
 
-| CST        | Time |    n|  n\_insame|  prc\_insame|
-|:-----------|:-----|----:|----------:|------------:|
-| CST\_I     | 24   |  221|        196|         88.7|
-| CST\_I     | 36   |  218|        196|         89.9|
-| CST\_II    | 24   |   73|         56|         76.7|
-| CST\_II    | 36   |   70|         56|         80.0|
-| CST\_III   | 24   |  225|        194|         86.2|
-| CST\_III   | 36   |  229|        194|         84.7|
-| CST\_IV\_b | 24   |   33|         19|         57.6|
-| CST\_IV\_b | 36   |   41|         19|         46.3|
-| CST\_IV\_c | 24   |   62|         47|         75.8|
-| CST\_IV\_c | 36   |   62|         47|         75.8|
-| CST\_V     | 24   |   43|         29|         67.4|
-| CST\_V     | 36   |   37|         29|         78.4|
+| CST        | Time |    n|  n\_insame|  prc\_insame| stat_pair|
+|:-----------|:-----|----:|----------:|------------:|---------:|
+| CST\_I     | 24   |  221|        196|         88.7|        a |
+| CST\_II    | 24   |   73|         56|         76.7|        bc|
+| CST\_III   | 24   |  225|        194|         86.2|        ab|
+| CST\_IV\_b | 24   |   33|         19|         57.6|        c |
+| CST\_IV\_c | 24   |   62|         47|         75.8|        bc|
+| CST\_V     | 24   |   43|         29|         67.4|        c |
 
 ``` r
 dfwuf <- dfpermwuf %>%
@@ -662,33 +666,39 @@ tb2 <- DF %>%
 kable(tb2, caption = 'Stability between week 24 and w 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500)', digits = 5)
 ```
 
-| method |    n|  median\_dist|  median\_permdist|         R|     pv|
-|:-------|----:|-------------:|-----------------:|---------:|------:|
-| wuf    |  657|       0.04967|           0.21963|   4.42144|  4e-04|
-| jsd    |  657|       0.05259|           0.61727|  11.73806|  4e-04|
+**Supplementary Table 4** Stability between week 24 and w 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500). 
+
+| method |    n|  median\_dist|  median\_permdist|      R|     pv|
+|:-------|----:|-------------:|-----------------:|------:|------:|
+| wuf    |  657|       0.04967|           0.21963|   4.42|  4e-04|
+| jsd    |  657|       0.05259|           0.61727|  11.74|  4e-04|
 
 ``` r
 kable(tb_CST,caption = 'Stability between week 24 and w 36 dependent on week 24 CST', digits = 4)
 ```
 
-| method | CST        |    n|  median\_dist|
-|:-------|:-----------|----:|-------------:|
-| wuf    | CST\_I     |   73|        0.0902|
-| wuf    | CST\_II    |  221|        0.0211|
-| wuf    | CST\_III   |  225|        0.0472|
-| wuf    | CST\_IV\_b |   33|        0.2878|
-| wuf    | CST\_IV\_c |   62|        0.1264|
-| wuf    | CST\_V     |   43|        0.0611|
-| jsd    | CST\_I     |   73|        0.0723|
-| jsd    | CST\_II    |  221|        0.0349|
-| jsd    | CST\_III   |  225|        0.0446|
-| jsd    | CST\_IV\_b |   33|        0.2738|
-| jsd    | CST\_IV\_c |   62|        0.0763|
-| jsd    | CST\_V     |   43|        0.0780|
+**Supplementary Table 5** - Distance between week 24 and week 36. § Based on kruskal-walis test. 
+
+| method | CST        |    n|  median\_dist| p value §|
+|:-------|:-----------|----:|-------------:|---------:|
+| wuf    | CST\_I     |   73|        0.0902|  < 10-7  |
+| wuf    | CST\_II    |  221|        0.0211|          |
+| wuf    | CST\_III   |  225|        0.0472|          |
+| wuf    | CST\_IV\_b |   33|        0.2878|          |
+| wuf    | CST\_IV\_c |   62|        0.1264|          |
+| wuf    | CST\_V     |   43|        0.0611|          |
+| jsd    | CST\_I     |   73|        0.0723|  < 10-7  |
+| jsd    | CST\_II    |  221|        0.0349|          |
+| jsd    | CST\_III   |  225|        0.0446|          |
+| jsd    | CST\_IV\_b |   33|        0.2738|          |
+| jsd    | CST\_IV\_c |   62|        0.0763|          |
+| jsd    | CST\_V     |   43|        0.0780|          |
 
 ``` r
 kable(tb_CSTpv,caption = 'Inference (kruskal walis) for differences in stability between week 24 and w 36 dependent on week 24 CST', digits = 100)
 ```
+
+**Supplementary Table 5b** - Kruskal-walis test for suppl table 5.
 
 | method |  statistic|       p.value|  parameter|
 |:-------|----------:|-------------:|----------:|
@@ -724,6 +734,8 @@ tb2 <- infX %>%
   data.frame()
 kable(tb2, digits = 1, caption = 'Number of infant samples (n), with a corresponding maternal vaginal w36 sample (n_with_vagw36)')
 ```
+
+**Table** - Child descriptives: **n** number of samples, **n\_with\_vagw36** number of samples with corresponding week 36 vaginal microbiome data. **prc** percentage with both.
 
 | Type | Time | DELIVERY       |    n|  n\_with\_vagw36|   prc|
 |:-----|:-----|:---------------|----:|----------------:|-----:|
@@ -1246,6 +1258,7 @@ ttb <- STATtot %>%
 
 kable(ttb,caption = 'Individual transfermodels, coverage of testable OTUs and strongest results', digits = 3)
 ```
+**Table 1** - Descriptives on testable OTU’s in terms of numbers of OTUs, vaginal, fecal and airway total coverage, number of tests reaching nominal and FDR corrected significance. 
 
 | delivery |  time| type    |  notu|  relativeAbuM|  relativeAbuC|   pmin|  pminadj|  n\_crude\_below\_01|  n\_crude\_below\_05|  n\_fdr\_below\_05|  n\_fdr\_below\_10|
 |:---------|-----:|:--------|-----:|-------------:|-------------:|------:|--------:|--------------------:|--------------------:|------------------:|------------------:|
@@ -1330,6 +1343,7 @@ print(G1)
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-19-1.png" 
 alt="The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families."
 style="display: block; margin: auto;" />
+**Supplementary Figure 3:** The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families.
 
 ``` r
 tb <- STATtot %>%
@@ -1415,7 +1429,10 @@ G2 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0,
 print(G2)
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-20-1.png" 
+alt='' 
+style="display: block; margin: auto;" />
+**Sectio Delivery** The odds for transfer between mothers (week 36) and their respective Cesarean section born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families.  
 
 Weighted Odds Ratio
 -------------------
@@ -1506,6 +1523,8 @@ g1 <- ggplot(data = tbWeigtedSTATs,
 
 kable(WRpermstats, digits = 2, caption = 'Inference for the difference in weigted ratios between sectio- and vaginal born children')
 ```
+
+**Table** - Inference for the difference in weighted transfer ratios between sectio- and vaginal born children.
 
 | Type    |  Time|  Model\_ratioratio|  niter|  Perm\_ratioratio\_median|  Perm\_ratioratio\_mean|    pv|
 |:--------|-----:|------------------:|------:|-------------------------:|-----------------------:|-----:|
@@ -1601,6 +1620,8 @@ load('./FamilyRatioSTATs_v2.RData')
 kable(tbsel, caption = 'Number of OTUs for each taxonomic partitioning based on Family or Phylum across all models')
 ```
 
+**Table** - Number of OTUs for each taxonomic partitioning based on Family or Phylum across all models.
+
 | Family3                            |  nmin|  nmax|  nmedian|
 |:-----------------------------------|-----:|-----:|--------:|
 | Actinomycetaceae                   |     4|    18|     11.5|
@@ -1693,7 +1714,10 @@ G3 <- ggdraw() +
   draw_plot(g3a2 + ylab(''),0.5,0,0.5,1) 
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/Figure2.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/Figure2.png" 
+alt=''
+style="display: block; margin: auto;" />
+**Figure 2:** Weighted Transfer Ratios from vaginal week 36 to the fecal- and airway compartment in first year according to mode of delivery (blue: vaginal birth, red: cesarean section) partitioned for the eight most represented taxonomic classes at Family level with upper right (*Lachnospiraceae*) being the most represented family followed by *Lactobacillaceae* and so forth. For compartments with less than 30 representative OTUs, the results are shaded. Error bars reflects standard errors.
 
 ### Supplementary Figure 5 - Results on the tree of life
 
@@ -1776,3 +1800,5 @@ g3 + xlim(c(0,56)) + guides(fill =  guide_legend(title = 'wOR', keywidth = 4, ke
 alt="Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children.
 "style="display: block; margin: auto;" />
+**Supplementary Figure 5**: Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
+The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children. 
