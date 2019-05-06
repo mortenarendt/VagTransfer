@@ -6,9 +6,9 @@ Stability of Vaginal microbiota during pregnancy and its importance for early in
     -   [Size, number of reads and sparsity](#size-number-of-reads-and-sparsity)
 -   [Vaginal descriptives](#vaginal-descriptives)
     -   [Community State Types](#community-state-types)
-        -   [Figure S1 - Alluvial plot with CST](#figure-s1---alluvial-plot-with-cst)
+        -   [Supplementart Figure 1 - Alluvial plot with CST](#supplementary-figure-1---alluvial-plot-with-cst)
     -   [Ordination of of vag samples with CTS and timepoints](#ordination-of-of-vag-samples-with-cts-and-timepoints)
-        -   [Figure S2](#figure-s2)
+        -   [Supplementary Figure 2](#supplementary-figure-2)
     -   [Stability between w24 and w36](#stability-between-w24-and-w36)
         -   [Tables with stability results](#tables-with-stability-results)
 -   [Infant descriptives](#infant-descriptives)
@@ -17,7 +17,7 @@ Stability of Vaginal microbiota during pregnancy and its importance for early in
     -   [ALL individual OTU models](#all-individual-otu-models)
     -   [ALL - Compare weighted Ratios between c-section and vaginal birth at each timepoint](#all---compare-weighted-ratios-between-c-section-and-vaginal-birth-at-each-timepoint)
         -   [Table 1 - testable OTU's](#table-1---testable-otus)
-        -   [Figure S3 - vaginal delivery](#figure-s3---vaginal-delivery)
+        -   [Supplementary Figure 3 - vaginal delivery](#supplementary-figure-3---vaginal-delivery)
         -   [Sectio delivery](#sectio-delivery)
     -   [Weighted Odds Ratio](#weighted-odds-ratio)
         -   [OVERALL ratio between positive and negative odds](#overall-ratio-between-positive-and-negative-odds)
@@ -25,7 +25,7 @@ Stability of Vaginal microbiota during pregnancy and its importance for early in
         -   [Figure 1 - Weigted Transfer Ratios](#figure-1---weigted-transfer-ratios)
         -   [Calculated for individual taxonomic levels](#calculated-for-individual-taxonomic-levels)
         -   [Figure 2 - Individual taxonomic levels](#figure-2---individual-taxonomic-levels)
-        -   [Figure S5 - Results on the tree of life](#figure-s5---results-on-the-tree-of-life)
+        -   [Supplementary Figure 5 - Results on the tree of life](#supplementart-figure-5---results-on-the-tree-of-life)
 
 Data
 ====
@@ -43,7 +43,7 @@ library(ggtree)
 library(ggalluvial)
 library(vegan)
 library(phyloseq)
-load('COPSACbirthmicrobiome_v2.RData')
+load('COPSACbirthmicrobiome.RData')
 ```
 
 Descriptives
@@ -319,7 +319,7 @@ tb1m <- merge(merge(tb1,tb1g, by = c('CST','rnk')), tb1otu,by = c('CST','rnk'))
 save(file = './CommunityStateTypes.RData',list = c('vagX','clust','vag.jsd','tb0','tb1m'))
 ```
 
-### Figure S1 - Alluvial plot with CST
+### Supplementary table 1
 
 ``` r
 load('./CommunityStateTypes.RData')
@@ -335,6 +335,8 @@ kable(tb0, caption = 'Sample Distribution, n: number of samples in CST, n_w_rep:
 | CST\_IV\_b |   78|         74|   36|   42|
 | CST\_IV\_c |  133|        124|   68|   65|
 | CST\_V     |   80|         80|   43|   37|
+
+### Supplementary table 2
 
 ``` r
 kable(tb1m, caption = 'Top five Phylums / Genus / OTUs for each CST', digits = 2)
@@ -373,6 +375,8 @@ kable(tb1m, caption = 'Top five Phylums / Genus / OTUs for each CST', digits = 2
 | CST\_V     |    4| Proteobacteria |         0.71| Atopobium                  |        1.42| Gardnerella\_OTU5813                |      4.59|
 | CST\_V     |    5| Tenericutes    |         0.09| Prevotella                 |        0.85| Lactobacillus\_OTU5684              |      3.61|
 
+### Supplementary Figure 1 - Alluvial plot with CST
+
 ``` r
 gAL <- sample_data(vagX) %>%
   ggplot(data = .,
@@ -392,7 +396,9 @@ gAL <- sample_data(vagX) %>%
 print(gAL)
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-6-1.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-6-1.png" 
+alt = "Supplementary Figure 1: Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36."
+style="display: block; margin: auto;" />
 
 Ordination of of vag samples with CTS and timepoints
 ----------------------------------------------------
@@ -412,7 +418,7 @@ vag.all.jsd.nmds <- metaMDS(vag.jsd, k = 5, trymax = 100)
 save(file = './OrdinationRes.RData',list = c('vag.WUnifrac','vag.all.nmds','vag.all.jsd.nmds'))
 ```
 
-### Figure S2
+### Supplementary Figure 2
 
 Here PCoA plots show the distirbution of the samples based on CST and beta diversity metric. Clearly, some of the CST are more well defined than others. E.g. CST\_IV\_b and CST\_IV\_c are all over the place.
 
@@ -458,7 +464,9 @@ G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0,
 print(G1)
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-8-1.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-8-1.png" 
+alt="PCoA plot of the first four components of the vaginal microbiome by Jensen Shannon divergence (JSD). Women are connected by lines. Colors reflect Community State Types (CST)." 
+style="display: block; margin: auto;" />
 
 Stability between w24 and w36
 -----------------------------
@@ -1252,7 +1260,7 @@ kable(ttb,caption = 'Individual transfermodels, coverage of testable OTUs and st
 | norm     |   300| Fecal   |  1182|        42.625|        87.238|  0.002|    0.998|                    2|                   22|                  0|                  0|
 
 
-### Figure S3 - vaginal delivery
+### Supplementary Figure 3 - vaginal delivery
 
 The odds for transfer between mother (week 36), child (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). This shows, that 1) there is trend of transfer from more OTU's being positive (OR&gt;1) than negative, more signal in fecal, that none is strongly significant controling for fdr, and that those which obtain the strongest tranfer results are those which are in low populationwide vaginal abundance.
 
@@ -1316,7 +1324,9 @@ G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0,
 print(G1)
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-19-1.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-19-1.png" 
+alt="The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families."
+style="display: block; margin: auto;" />
 
 ``` r
 tb <- STATtot %>%
@@ -1682,7 +1692,7 @@ G3 <- ggdraw() +
 
 <img src="results_and_figures_files/figure-markdown_github/Figure2.png" style="display: block; margin: auto;" />
 
-### Figure S5 - Results on the tree of life
+### Supplementary Figure 5 - Results on the tree of life
 
 Here, we have the individual results shown on the phylogenetic tree (see *phylotree\_transfer\_rect.pdf*)
 
@@ -1759,4 +1769,7 @@ g3 + xlim(c(0,56)) + guides(fill =  guide_legend(title = 'wOR', keywidth = 4, ke
   theme(legend.position = 'top',    legend.text=element_text(size=30))
 ```
 
-<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-26-1.png" style="display: block; margin: auto;" />
+<img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-26-1.png" 
+alt="Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
+The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children.
+"style="display: block; margin: auto;" />
