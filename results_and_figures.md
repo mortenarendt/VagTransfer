@@ -400,6 +400,9 @@ print(gAL)
 alt="Supplementary Figure 1: Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36."
 style="display: block; margin: auto;" />
 
+** Supplementary Figure 1: ** Alluvial plot of the women’s CST at week 24 and week 36. For each woman, a line connects their CST at week 24 with their CST at week 36. 
+
+
 Ordination of of vag samples with CTS and timepoints
 ----------------------------------------------------
 
