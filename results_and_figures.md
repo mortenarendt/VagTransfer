@@ -1349,9 +1349,9 @@ kable(tb, digits = 4,caption = 'inference for relation between odds for tranfers
 | Airways |    90| csec     | log10(abuMrel) |   -0.0592|     0.0519|   0.2541|
 | Airways |    90| norm     | log10(abuMrel) |   -0.0326|     0.0280|   0.2451|
 
-### Figure S4 - sectio delivery
+### Sectio delivery
 
-Same figure, just for sectio born children, where the signal is diluted. In this analysis the transfer to fecal is strongly inversely associated with population wide vaginal abundance.
+Same figure as above, just for sectio born children, where the signal is diluted. In this analysis the transfer to fecal is strongly inversely associated with population wide vaginal abundance.
 
 ``` r
 DF <- STATtot %>%
@@ -1683,6 +1683,8 @@ G3 <- ggdraw() +
   draw_plot(g3a1 + ylab('WTR'),0,0,0.5,1) + 
   draw_plot(g3a2 + ylab(''),0.5,0,0.5,1) 
 ```
+
+<img src="results_and_figures_files/figure-markdown_github/Figure2.png" style="display: block; margin: auto;" />
 
 ### Figure S5 - Results on the tree of life
 
