@@ -1393,69 +1393,24 @@ style="display: block; margin: auto;" />
 Weighted Odds Ratio
 -------------------
 
-In order to make a common measure for the transfer signal, a weighted ratio of positive vs negative OTU's. For each OTU the ratio is defined as the sum of -log(OR)\*log(p\_value) which should be around 1 in case of no transfer, and larger when present. To test for transfer, the dyads are scrambled to construct a null distribution for the ratio.
+In order to make a common measure for the transfer signal, a weighted ratio of positive vs negative OTU's is calculated as
 
-### markdown GIThub
-\[WTR = \frac{WP}{WN}\] where
+*WTR =WP/WN*
 
-\[WP = \sum_{i \in I(OR>1)}(-log(OR_i)log(pv_i)\]
-
-and
-
-\[WN = \sum_{i \in I(OR>1)}(log(OR_i)log(pv_i)\]
-
-\(WTR\) should be around 1 in case of no transfer, and larger when
-present. To test for transfer, the dyads ar
-
-### markdown strict
-
-$$WTR = \\frac{WP}{WN}$$
 where
 
-*WP* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>( − *l**o**g*(*OR*<sub>*i*</sub>)*l**o**g*(*pv*<sub>*i*</sub>)
+*WP* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>[ − *log*(*OR*<sub>*i*</sub>)*log*(*pv*<sub>*i*</sub>)]
 
 and
 
-*WN* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>(*l**o**g*(*OR*<sub>*i*</sub>)*l**o**g*(*pv*<sub>*i*</sub>)
+*WN* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>[*log*(*OR*<sub>*i*</sub>)*log*(*pv*<sub>*i*</sub>)]
 
 *WTR* should be around 1 in case of no transfer, and larger when
-present. To test for transfer, the dyads ar
+present. To test for transfer, the dyads are scrambled to construct a null distribution for the ratio.
 
 ### Overall ratio between positive and negative odds
 
 The figure shows time point on x-axis, ratio on y-axis color is mode of delivery and panel is compartment. The text reflects the p-value.
-
-
-
-### markdown pandoc
-
-$$WTR = \frac{WP}{WN}$$ where
-
-$$WP = \sum_{i \in I(OR>1)}(-log(OR_i)log(pv_i)$$
-
-and
-
-$$WN = \sum_{i \in I(OR>1)}(log(OR_i)log(pv_i)$$
-
-$WTR$ should be around 1 in case of no transfer, and larger when
-present. To test for transfer, the dyads ar
-
-
-### markdown PHP
-
-$$WTR = \\frac{WP}{WN}$$
-where
-
-*W**P* = ∑<sub>*i* ∈ *I*(*O**R* &gt; 1)</sub>( − *l**o**g*(*O**R*<sub>*i*</sub>)*l**o**g*(*p**v*<sub>*i*</sub>)
-
-and
-
-*W**N* = ∑<sub>*i* ∈ *I*(*O**R* &gt; 1)</sub>(*l**o**g*(*O**R*<sub>*i*</sub>)*l**o**g*(*p**v*<sub>*i*</sub>)
-
-*W**T**R* should be around 1 in case of no transfer, and larger when
-present. To test for transfer, the dyads ar
-
-
 
 ``` r
 tbWeigtedSTATs <- STATtot %>%
@@ -1485,7 +1440,7 @@ tbWeigtedSTATs <- cbind(data.frame(tbWeigtedSTATs),permstats)
 save(file = './RatioStats_onesided.RData',list = c('tbWeigtedSTATs'))
 ```
 
-### Weigted Transfer Ratios
+### Weighted Transfer Ratios
 
 ``` r
 load('./RatioStats_onesided.RData')
@@ -1495,6 +1450,9 @@ tbWeigtedSTATs <- tbWeigtedSTATs %>%
 tb1 <- kable(tbWeigtedSTATs, caption = 'Weigthed Transfer Odds as function of delivery mode, compartment and age',digits = 5)
 tb1
 ```
+
+**Table** - Table of WTR.
+
 
 | type    | delivery |  time|   np|   nn|    ratio|     pv|  SElgratio|  permmedian|  modelratio|  model\_over\_perm|
 |:--------|:---------|-----:|----:|----:|--------:|------:|----------:|-----------:|-----------:|------------------:|
@@ -1511,7 +1469,7 @@ tb1
 | Airways | norm     |    30|  239|  663|  2.38850|  0.000|    0.21577|     1.01776|     2.38850|            2.34682|
 | Airways | norm     |    90|  210|  785|  1.20605|  0.263|    0.22163|     1.04145|     1.20605|            1.15805|
 
-### Figure 1 - Weigted Transfer Ratios
+### Figure 1 - Weighted Transfer Ratios
 
 ``` r
 g1 <- ggplot(data = tbWeigtedSTATs, 
@@ -1532,9 +1490,15 @@ g1 <- ggplot(data = tbWeigtedSTATs,
   facet_wrap(~type) +
   theme_bw() + 
   theme(legend.position = 'none',panel.grid.minor = element_blank())
+g1
 
 kable(WRpermstats, digits = 2, caption = 'Inference for the difference in weigted ratios between sectio- and vaginal born children')
 ```
+
+<img src="results_and_figures_files/figure-markdown_github/Figure1.png" 
+alt=''
+style="display: block; margin: auto;" />
+**Figure 1:** Weighted Transfer Ratios from vaginal week 36 to the fecal- and airway compartment in first year of life stratified on mode of delivery (blue: vaginal birth, red: cesarean section). A ratio above 1 indicates enrichment of microbial transfer. Error bars reflects standard errors. 
 
 **Table** - Inference for the difference in weighted transfer ratios between sectio- and vaginal born children.
 
@@ -1810,7 +1774,8 @@ g3 + xlim(c(0,56)) + guides(fill =  guide_legend(title = 'wOR', keywidth = 4, ke
 
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-26-1.png" 
 alt="Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
-The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children.
+The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children."
 "style="display: block; margin: auto;" />
+
 **Supplementary Figure 5** - Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children. 
