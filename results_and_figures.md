@@ -131,6 +131,8 @@ tb <- df %>% group_by(Type,Time) %>%
 kable(tb,caption = 'Summary stats for compartment/timepoint', digits = 0)
 ```
 
+### Summary stats for compartment/timepoint
+
 **Table** - Summary stats for compartment/timepoint. 
 
 | Type | Time |  median\_count|  mean\_count|  sd\_count|  q25\_count|  q75\_count|  median\_observed|  mean\_observed|  sd\_observed|  min\_observed|  max\_observed|
@@ -611,9 +613,12 @@ kable(ttb2,caption = 'overall stability descriptives from week 24 and w 36', dig
 |----:|-----:|
 |  541|  82.3|
 
+### Supplementary Table 3
+
 ``` r
 kable(ttb,caption = 'CST descriptives from week 24 and w 36 dependent', digits = 1)
 ```
+
 **Supplementary Table 3** - CST descriptives from week 24 to week 36. 
 **n_24**: CST at gestational week 24. **n_insame**: Number of women having the same CST at gestational week 36 as week 24. **prc_insame**: Percent of women having the same CST at gestational week 36. **stat_pair**: CSTs with the same letter have a statistical similar ratio of women changing to another CST (χ2 p-value > 0.05).
 
@@ -625,6 +630,8 @@ kable(ttb,caption = 'CST descriptives from week 24 and w 36 dependent', digits =
 | CST\_IV\_b | 24   |   33|         19|         57.6|        c |
 | CST\_IV\_c | 24   |   62|         47|         75.8|        bc|
 | CST\_V     | 24   |   43|         29|         67.4|        c |
+
+### Supplementary Table 4
 
 ``` r
 dfwuf <- dfpermwuf %>%
@@ -675,10 +682,12 @@ kable(tb2, caption = 'Stability between week 24 and w 36 assigned as median dist
 | wuf    |  657|       0.04967|           0.21963|   4.42|  4e-04|
 | jsd    |  657|       0.05259|           0.61727|  11.74|  4e-04|
 
+
+### Supplementary Table 5
+
 ``` r
 kable(tb_CST,caption = 'Stability between week 24 and w 36 dependent on week 24 CST', digits = 4)
 ```
-
 **Supplementary Table 5** - Distance between week 24 and week 36. § Based on kruskal-walis test. 
 
 | method | CST        |    n|  median\_dist| p value §|
@@ -768,7 +777,7 @@ Transfer
 Functions for transfer models
 -----------------------------
 
-Here, we have a bunch of internal function with specific algorithms.
+Here, we have a bunch of internal function with specific algorithms. Additionally, three functions as individual R-scripts are used, namely: getTransferStats.R, getWinnerStats.R and inferenceTransferStat.R. 
 
 ``` r
 gt <- function(x){
@@ -900,10 +909,10 @@ extractPV <- function(permSTAT,modelratio,trm=100){
 
 ```
 
-ALL individual OTU models
+All individual OTU models
 -------------------------
 
-Here all the combinations are calculated.
+Here all the combinations of maternal vaginal week 36 and mode of delivery, compartment and time point are calculated.
 
 ``` r
 nperm <-1000
@@ -1064,63 +1073,7 @@ permSTAT_w36_T3m_csec_acute <- permSTATfisher
 save.image('./ORresults.RData')
 ```
 
-ALL - Compare weighted Ratios between c-section and vaginal birth at each timepoint
------------------------------------------------------------------------------------
-
-A permutation test between c-sectio and vaginal birth are conducted for all combinations.
-
 ``` r
-nperm <-1000
-# w36 vs F week 1
-phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36')
-phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F') 
-source('inferenceTransferStat.R')
-WeigtedRatio_F1w <- wrperm
-
-phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F') 
-source('inferenceTransferStat.R')
-WeigtedRatio_F1m <- wrperm
-
-phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F') 
-source('inferenceTransferStat.R')
-WeigtedRatio_F1y <- wrperm
-
-phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T') 
-source('inferenceTransferStat.R')
-WeigtedRatio_T1w <- wrperm
-
-phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T') 
-source('inferenceTransferStat.R')
-WeigtedRatio_T1m <- wrperm
-
-phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T') 
-source('inferenceTransferStat.R')
-WeigtedRatio_T3m <- wrperm
-
-getPermutationPV <- function(WR){
-  # WR <- WeigtedRatio_F1m
-  pv <- sum(WR$Perm_ratioratio>WR$Model_ratioratio[1]) / dim(WR)[1]
-  df <- data.frame(Model_ratioratio = WR$Model_ratioratio[1],
-                   niter = dim(WR)[1]/2, 
-                   Perm_ratioratio_median = median(WR$Perm_ratioratio), 
-                   Perm_ratioratio_mean = mean(WR$Perm_ratioratio),
-                   pv = pv)
-  return(df)
-}
-WRpermstats <- rbind(
-  data.frame(Type = 'Fecal', Time = 7, getPermutationPV(WeigtedRatio_F1w)),
-  data.frame(Type = 'Fecal', Time = 30, getPermutationPV(WeigtedRatio_F1m)),
-  data.frame(Type = 'Fecal', Time = 300, getPermutationPV(WeigtedRatio_F1y)),
-  data.frame(Type = 'Airways', Time = 7, getPermutationPV(WeigtedRatio_T1w)),
-  data.frame(Type = 'Airways', Time = 30, getPermutationPV(WeigtedRatio_T1m)),
-  data.frame(Type = 'Airways', Time = 90, getPermutationPV(WeigtedRatio_T3m)))
-
-save(file = './weighted_permutation_results_onesided.RData', list = c('WRpermstats'))
-```
-
-``` r
-load('./weighted_permutation_results_onesided.RData')
-
 load('./ORresults.RData')
 STATtot <- rbind(
   data.frame(STAT_w36_F1m_csec, time =  30, type =  'Fecal', delivery =  'csec'),
@@ -1168,8 +1121,10 @@ cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brew
 cols <- c(cols[1:(length(legend_names)-1)],'gray')
 ```
 
+Here, for each combination, the top most abundant vaginal OTUs are tested for presence in the child. 
+
 ``` r
-## ALL most abundant models (Descriptives and inference)
+## ALL most abundant OTU models (Descriptives and inference)
 nperm <- 1000
 # w36 
 phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36')
@@ -1276,7 +1231,6 @@ kable(ttb,caption = 'Individual transfermodels, coverage of testable OTUs and st
 | norm     |    30| Airways |   902|        41.834|        43.900|  0.000|    0.097|                    8|                   29|                  0|                  1|
 | norm     |    90| Airways |   995|        42.266|        73.316|  0.001|    0.968|                    5|                   27|                  0|                  0|
 | norm     |   300| Fecal   |  1182|        42.625|        87.238|  0.002|    0.998|                    2|                   22|                  0|                  0|
-
 
 ### Supplementary Figure 3 - vaginal delivery
 
@@ -1439,11 +1393,20 @@ style="display: block; margin: auto;" />
 Weighted Odds Ratio
 -------------------
 
-In order to make a commen measure for the tranfer signal, a weigthed ratio of positive vs negative otu's. For each OTU the ratio is defined as the sum of -log(OR)\*log(p\_value) which should be around 1 in case of no tranfer, and larger when present. To test for transfer, the dyads are scrampled to construct a null distribution for the ratio.
+In order to make a common measure for the transfer signal, a weighted ratio of positive vs negative OTU's. For each OTU the ratio is defined as the sum of -log(OR)\*log(p\_value) which should be around 1 in case of no transfer, and larger when present. To test for transfer, the dyads are scrambled to construct a null distribution for the ratio.
 
-Due to the high sparsity, the null distribution is not always centered around 1, therefore the ratios reported is the model ratio relative to the median of the null distribution.
+\[WTR = \frac{WP}{WN}\] where
 
-### OVERALL ratio between positive and negative odds
+\[WP = \sum_{i \in I(OR>1)}(-log(OR_i)log(pv_i)\]
+
+and
+
+\[WN = \sum_{i \in I(OR>1)}(log(OR_i)log(pv_i)\]
+
+\(WTR\) should be around 1 in case of no transfer, and larger when
+present. To test for transfer, the dyads ar
+
+### Overall ratio between positive and negative odds
 
 The figure shows time point on x-axis, ratio on y-axis color is mode of delivery and panel is compartment. The text reflects the p-value.
 
