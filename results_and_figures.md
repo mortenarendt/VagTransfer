@@ -31,7 +31,7 @@ Stability of Vaginal microbiota during pregnancy and its importance for early in
         -   [Figure 1 - Weighted Transfer Ratios](#figure-1---weighted-transfer-ratios)
         -   [Calculated for individual taxonomic levels](#calculated-for-individual-taxonomic-levels)
         -   [Figure 2 - Individual taxonomic levels](#figure-2---individual-taxonomic-levels)
-        -   [Supplementary Figure 5 - Results on the tree of life](#supplementart-figure-5---results-on-the-tree-of-life)
+        -   [Supplementary Figure 4 - Results on the tree of life](#supplementary-figure-4---results-on-the-tree-of-life)
 
 Data
 ====
@@ -1701,7 +1701,7 @@ alt=''
 style="display: block; margin: auto;" />
 **Figure 2:** Weighted Transfer Ratios from vaginal week 36 to the fecal- and airway compartment in first year according to mode of delivery (blue: vaginal birth, red: cesarean section) partitioned for the eight most represented taxonomic classes at Family level with upper right (*Lachnospiraceae*) being the most represented family followed by *Lactobacillaceae* and so forth. For compartments with less than 30 representative OTUs, the results are shaded. Error bars reflects standard errors.
 
-### Supplementary Figure 5 - Results on the tree of life
+### Supplementary Figure 4 - Results on the tree of life
 
 Here, we have the individual results shown on the phylogenetic tree (see *phylotree\_transfer\_rect.pdf*)
 
@@ -1783,5 +1783,5 @@ alt="Phylogenetic tree highlighting OTU-wise individual transfer odds from vagin
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children."
 style="display: block; margin: auto;" />
 
-**Supplementary Figure 5** - Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
+**Supplementary Figure 4** - Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children. 
