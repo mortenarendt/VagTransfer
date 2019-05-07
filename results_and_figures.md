@@ -131,6 +131,8 @@ tb <- df %>% group_by(Type,Time) %>%
 kable(tb,caption = 'Summary stats for compartment/timepoint', digits = 0)
 ```
 
+**Table** - Summary stats for compartment/timepoint. 
+
 | Type | Time |  median\_count|  mean\_count|  sd\_count|  q25\_count|  q75\_count|  median\_observed|  mean\_observed|  sd\_observed|  min\_observed|  max\_observed|
 |:-----|:-----|--------------:|------------:|----------:|-----------:|-----------:|-----------------:|---------------:|-------------:|--------------:|--------------:|
 | F    | 1m   |          52122|        57858|      43118|       34348|       74682|               142|             147|            59|             44|            404|
@@ -347,7 +349,7 @@ kable(tb0, caption = 'Sample Distribution, n: number of samples in CST, n_w_rep:
 kable(tb1m, caption = 'Top five Phylums / Genus / OTUs for each CST', digits = 2)
 ```
 
-**Supplementary table 2** - : Top five dominating phylum, genus and OUT respectively for each CST. Percentages refers to the total relative abundance of the respective Phylum, Genus or OTU within the given CST. 
+**Supplementary table 2** - Top five dominating phylum, genus and OUT respectively for each CST. Percentages refers to the total relative abundance of the respective Phylum, Genus or OTU within the given CST. 
 
 | CST        | rank| Phylum         | Phylum (prc)| Genus                      | Genus (prc)| OTU                                 | OTU (prc)|
 |:-----------|----:|:---------------|------------:|:---------------------------|-----------:|:------------------------------------|---------:|
@@ -666,7 +668,7 @@ tb2 <- DF %>%
 kable(tb2, caption = 'Stability between week 24 and w 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500)', digits = 5)
 ```
 
-**Supplementary Table 4** Stability between week 24 and w 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500). 
+**Supplementary Table 4** - Stability between week 24 and w 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500). 
 
 | method |    n|  median\_dist|  median\_permdist|      R|     pv|
 |:-------|----:|-------------:|-----------------:|------:|------:|
@@ -1343,7 +1345,7 @@ print(G1)
 <img src="results_and_figures_files/figure-markdown_github/unnamed-chunk-19-1.png" 
 alt="The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families."
 style="display: block; margin: auto;" />
-**Supplementary Figure 3:** The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families.
+**Supplementary Figure 3** - The odds for transfer between mothers (week 36) and their respective vaginally-born children (week 1). Top panel shows the OR (x-axis) and the strength (p-value). Of particular interest is the distribution of positive- (OR>1) compared to negative odds (OR<1).  Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). Odds larger (or smaller) than 100 fold are truncated to 100 (or 0.01). Colors indicate top 15 overall most abundant taxonomic Families.
 
 ``` r
 tb <- STATtot %>%
@@ -1800,5 +1802,5 @@ g3 + xlim(c(0,56)) + guides(fill =  guide_legend(title = 'wOR', keywidth = 4, ke
 alt="Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children.
 "style="display: block; margin: auto;" />
-**Supplementary Figure 5**: Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
+**Supplementary Figure 5** - Phylogenetic tree highlighting OTU-wise individual transfer odds from vaginal week 36 to all time points and microbial compartments in first year of life (as columns in the heatmap). Green and red indicates positive- and negative odds respectively. 
 The color codes on the right indicate the partitioning according to nine taxonomic families  (and one other). As an example of an interpretation from this information rich figure consider the clade consisting of approximately the upper half of the Bacteroidaceae. These OTUs shows transfer to the fecal compartment for vaginal born children with correspondingly no transfer in c-section born children and almost no data support for transfer to the airways. Contrary, the lower Bacteroidaceae clade shows weaker transfer results to the fecal compartment, with moderate support for transfer to airways in vaginal born children. 
