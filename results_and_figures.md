@@ -1412,13 +1412,13 @@ present. To test for transfer, the dyads ar
 $$WTR = \\frac{WP}{WN}$$
 where
 
-*W**P* = ∑<sub>*i* ∈ *I*(*O**R* &gt; 1)</sub>( − *l**o**g*(*O**R*<sub>*i*</sub>)*l**o**g*(*p**v*<sub>*i*</sub>)
+*WP* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>( − *l**o**g*(*OR*<sub>*i*</sub>)*l**o**g*(*pv*<sub>*i*</sub>)
 
 and
 
-*W**N* = ∑<sub>*i* ∈ *I*(*O**R* &gt; 1)</sub>(*l**o**g*(*O**R*<sub>*i*</sub>)*l**o**g*(*p**v*<sub>*i*</sub>)
+*WN* = ∑<sub>*i* ∈ *I*(*OR* &gt; 1)</sub>(*l**o**g*(*OR*<sub>*i*</sub>)*l**o**g*(*pv*<sub>*i*</sub>)
 
-*W**T**R* should be around 1 in case of no transfer, and larger when
+*WTR* should be around 1 in case of no transfer, and larger when
 present. To test for transfer, the dyads ar
 
 ### Overall ratio between positive and negative odds
