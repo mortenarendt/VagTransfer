@@ -1,5 +1,3 @@
-library(foreach)
-library(doParallel)
 ###### Some functions
 
 get2by2table <- function(o1,o2){
@@ -96,10 +94,10 @@ colnames(wr)[2:5] <-paste('Model',colnames(wr)[2:5],sep = '_' )
 # }
 # 
 
-doMC::registerDoMC()
-foreach::getDoParWorkers()
+# registerDoMC()
+# getDoParWorkers()
 
-wrperm <-foreach (jj=1:nperm,.combine = rbind) %dopar% {
+wrperm <-foreach (jj=1:nperm,.combine = rbind) %do% {
   wr2 <- getRatios(o1,o2,sample(IDfactor))
 }
 wrperm <- data.frame(permutation = sort(rep(1:nperm,2)),wrperm)
@@ -108,4 +106,3 @@ wrperm <- wrperm %>%
   group_by(permutation) %>%
   mutate(Perm_ratioratio = ratio[delivery=='Normal'] / ratio[delivery=='Sectio']) %>%
   left_join(wr,by = 'delivery')
-

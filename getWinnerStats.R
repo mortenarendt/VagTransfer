@@ -1,11 +1,11 @@
 
 getRankedPrc <- function(X1,X2){
   mX2 <- X2 %>% 
-    gather(otu,Ccount,-c(dyadnb,Time,Type,DELIVERY,delivery)) %>%
+    gather(otu,Ccount,-c(dyadnb,Time,Type,DELIVERY,delivery,CST_w36)) %>%
     select(otu,Ccount,dyadnb)
   
   mX1 <- X1 %>% 
-    gather(otu,Mcount,-c(dyadnb,Time,Type,DELIVERY,delivery)) %>%
+    gather(otu,Mcount,-c(dyadnb,Time,Type,DELIVERY,delivery,CST_w36)) %>%
     group_by(dyadnb) %>%
     arrange(desc(Mcount)) %>%
     mutate(rnk = 1:n()) %>%
@@ -35,7 +35,7 @@ getPermStats <- function(x){
 
 ######## Set Data
 
-sd2 <- sample_data(phy2) %>% mutate(delivery = DELIVERY, delivery = replace(delivery, delivery!='Normal','Sectio'))
+sd2 <- data.frame(sample_data(phy2)) %>% mutate(delivery = DELIVERY, delivery = replace(delivery, delivery!='Normal','Sectio'))
 otu2 <- t(otu_table(phy2))
 otu2 <- otu2[,colnames(otu2) %in% colnames(X1)]
 X2 <- data.frame(sd2,otu2)
@@ -44,10 +44,10 @@ X2 <- data.frame(sd2,otu2)
 # Model 
 mX1 <- getRankedPrc(X1,X2) %>% mutate(prcModel = nC/n)
 
-registerDoMC()
+# registerDoMC()
 # permutation
 # for (i in 1:nperm){
-RR <- foreach (i=1:nperm) %dopar% {
+RR <- foreach (i=1:nperm) %do% {
   # print(i)
   X2r <- data.frame(sd2[shuffle(sd2$delivery),],otu2) 
   mX1r <- getRankedPrc(X1,X2r) %>% 
