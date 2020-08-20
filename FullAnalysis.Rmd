@@ -1,0 +1,2639 @@
+---
+title: "Stability of Vaginal microbiota during pregnancy and its importance for early infant microbiota using ASV"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, eval = F,warning = F,message = F,fig.width = 15, fig.height = 15, 
+                      fig.align = 'center')
+```
+
+# 0 - Prep
+Data for this project is from the COPSAC~2010~ cohort of 711 children / mother pairs. 
+In this project we include vaginal samples (week 24 and week 36), airway samples (1 week, 1 month, and 3 months), and fecal samples (1 week, 1 month, and 1 year) for all mother-child dyads which include a week 36 vaginal sample (665 mothers and 651 children). We describe the vaginal microbiome development from mid pregnancy (week 24) to late pregnancy (week 36), and the transfer to the airways and gut of the children in the first year of life. A special focus is on the differences between transfer to vaginal and sectio born children. 
+
+## 0.1 - Load libraries
+```{r libraries, eval=TRUE}
+rm(list = ls())
+library(tidyverse)
+library(cluster)
+library(fpc)
+library(broom)
+library(knitr)
+library(ggrepel)
+library(RColorBrewer)
+library(cowplot)
+library(ggtree)
+library(ggalluvial)
+library(vegan)
+library(phyloseq)
+library(foreach)
+library(RVAideMemoire)
+library(pheatmap)
+library(ggplotify)
+library(reshape2)
+```
+
+## 0.2 Download main data
+```{r download_main_data, eval=FALSE}
+### setting up the ASV data to match the formating of the initial ASV based analysis
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/COPSACbirthmicrobiome_ASV.RData',paste(getwd(),'COPSACbirthmicrobiome_ASV.RData',sep = '/'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**COPSACbirthmicrobiome_ASV.RData** contains the phyloseq object that is used for all subsequent analysis and with this the whole analysis can be easily replicated
+
+## 0.3 Download precalculated data
+To reduce the computational requirements during this analysis, we have precalculated the most computer intensive parts and if these are downloaded the calculations can be skipped. This means that you can either run this code chunk or all following code chunks which are currently set not to be evaluated. 
+```{r download_main_data, eval=FALSE}
+### setting up the ASV data to match the formating of the initial ASV based analysis
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/CommunityStateTypes.RData',paste(getwd(),'CommunityStateTypes.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/ORresults.RData',paste(getwd(),'ORresults.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/OrderRatioSTATs.RData',paste(getwd(),'OrderRatioSTATs.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/OrderRatioSTATs_split.RData',paste(getwd(),'OrderRatioSTATs_split.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/OrdinationRes.RData',paste(getwd(),'OrdinationRes.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/Stability_w24_to_2w6_permresults.RData',paste(getwd(),'Stability_w24_to_2w6_permresults.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/Winnerstats.RData',paste(getwd(),'Winnerstats.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/air_OrdinationRes.RData',paste(getwd(),'air_OrdinationRes.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/air_taxglm.RData',paste(getwd(),'air_taxglm.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/fec_OrdinationRes.RData',paste(getwd(),'fec_OrdinationRes.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/fec_taxglm.RData',paste(getwd(),'fec_taxglm.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/phyX_cst.RData',paste(getwd(),'phyX_cst.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/vag_taxglm.RData',paste(getwd(),'vag_taxglm.RData',sep = '/'))
+download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/weighted_permutation_results_onesided.RData',paste(getwd(),'weighted_permutation_results_onesided.RData',sep = '/'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+## 0.4 - Overview of samples, read counts and observed richness
+
+```{r sample_overview,eval=TRUE}
+load('COPSACbirthmicrobiome_ASV.RData')
+SD <- sample_data(phyX)
+levels(SD$Time) <- list(Week_24 = 24, Week_36 = 36, One_week = "1w", One_month = "1m", Three_months = "3m", One_year = "1y")
+levels(SD$Type) <- list(Vaginal = "V", Fecal = "F", Airway = "T")
+
+
+print("Phyloseq object used")
+print(phyX)
+
+print("sample count per time and type")
+tb0 <- data.frame(table(SD$Type,SD$Time))
+colnames(tb0) <- c("Compartment", "Time", "Samples")
+tb0.order <- tb0[order(tb0$Compartment),]
+tb0.order[tb0.order$Samples != 0,]
+
+fecX <- subset_samples(phyX,Type=='F')
+airX <- subset_samples(phyX,Type=='T')
+vagX <- subset_samples(phyX,Type=='V')
+
+df_type_stat <- data.frame(
+  nfec =  apply(otu_table(fecX)>0,1,sum),
+  nair =  apply(otu_table(airX)>0,1,sum),
+  nvag =  apply(otu_table(vagX)>0,1,sum))
+
+print("ASVs observed per compartment")
+apply(df_type_stat>0,2,sum)
+# get number of identified ASV's in each compartment
+
+
+df <- data.frame(depth = sample_sums(phyX),
+                 nobserved = apply(otu_table(phyX)>0,2,sum),
+                 sample_data(phyX))
+ggplot(data = df, aes(x = depth, fill = Type:Time)) + 
+  geom_histogram()+ 
+  scale_x_log10() + 
+  facet_wrap(~Type:Time)
+
+tb <- df %>% group_by(Type,Time) %>% 
+  summarise(median_count = median(depth), 
+            mean_count = mean(depth), 
+            sd_count = sd(depth), 
+            q25_count= quantile(depth)[2],
+            q75_count= quantile(depth)[4], 
+            median_observed = median(nobserved),
+            mean_observed = mean(nobserved), 
+            sd_observed = sd(nobserved), 
+            min_observed = min(nobserved), 
+            max_observed = max(nobserved),
+            q25_observed = quantile(nobserved)[2],
+            q75_observed = quantile(nobserved)[4]
+  )
+tb.type <- df %>% group_by(Type) %>% 
+  summarise(median_count = median(depth), 
+            mean_count = mean(depth), 
+            sd_count = sd(depth), 
+            q25_count= quantile(depth)[2],
+            q75_count= quantile(depth)[4], 
+            median_observed = median(nobserved),
+            mean_observed = mean(nobserved), 
+            sd_observed = sd(nobserved), 
+            min_observed = min(nobserved), 
+            max_observed = max(nobserved),
+            q25_observed = quantile(nobserved)[2],
+            q75_observed = quantile(nobserved)[4]
+  )
+
+kable(tb.type,caption = 'Summary stats for compartment', digits = 1)
+kable(tb,caption = 'Summary stats for compartment/timepoint', digits = 1)
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+# 1 - Vaginal microbiome
+## 1.1 - Data prep
+```{r prep_vaginal,eval=FALSE}
+load('COPSACbirthmicrobiome_ASV.RData')
+
+# ASV level
+vagX.raw <- subset_samples(phyX,Type=='V')
+vagX <- prune_taxa(taxa_sums(vagX.raw) > 0, vagX.raw)
+vagX.ra <- transform_sample_counts(vagX, function(x) x/sum(x))
+vagX.r <- rarefy_even_depth(vagX, 2000, rngseed = 2)
+vagX.transformed <- transform_sample_counts(vagX.r, function(x) x/sum(x))
+# Phylum level
+vagXphy <- tax_glom(vagX,'Phylum')
+taxa_names(vagXphy) <- tax_table(vagXphy)[,2]
+vagXphy.ra <- transform_sample_counts(vagXphy, function(x) x/sum(x))
+
+# Genus level
+vagXgenus <- tax_glom(vagX,'Genus_simple')
+taxa_names(vagXgenus) <- tax_table(vagXgenus)[,6]
+vagXgenus.ra <- transform_sample_counts(vagXgenus, function(x) x/sum(x))
+
+# Save phyloseq objects
+save(file = './vag_taxglm.RData',list = c('vagX','vagXphy','vagXgenus','vagX.ra','vagXphy.ra','vagXgenus.ra','vagX.r'))
+
+# Beta diversity
+vag.jsd <- distance(vagX.transformed, method="jsd")
+
+cl <- parallel::makeCluster(4)
+doParallel::registerDoParallel(cl)
+vag.WUnifrac <- UniFrac(vagX.prune, weighted=TRUE, parallel = TRUE)
+vag.all.nmds <- metaMDS(vag.WUnifrac, k = 4, trymax = 100)
+vag.all.jsd.nmds <- metaMDS(vag.jsd, k = 5, trymax = 100)
+
+# Save distance matrices and ordinations
+save(file = './OrdinationRes.RData',list = c('vag.WUnifrac','vag.all.nmds','vag.all.jsd.nmds','vag.jsd'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**vag_taxglm.RData** contains phyloseq objects with vaginal samples at phylum, genus and ASV level for both read counts and relative abundances, as well as a rarefied (2000 reads/sample) at ASV level.
+**OrdinationRes.RData** contains weighted UniFrac distances and jensen-Shannon divergence, as well as NMDS ordinations of both
+
+## 1.2 - Observed vaginal ASV's: 
+The distribution of the vaginal reads are here summarized on phylum, genus and individual ASV level.
+
+```{r composition_vaginal,eval=TRUE}
+load('./vag_taxglm.RData')
+
+df2 <- data.frame(tax_table(vagXphy.ra), taxprc = 100*taxa_sums(vagXphy.ra)/length(sample_names(vagXphy.ra)))
+df3 <- data.frame(tax_table(vagXgenus.ra),taxprc = 100*taxa_sums(vagXgenus.ra)/length(sample_names(vagXgenus.ra)))
+df3$Genus <- df3$Genus_simple
+df4 <- data.frame(tax_table(vagX.ra),taxprc = 100*taxa_sums(vagX.ra)/length(sample_names(vagX.ra)))
+
+df.richness <- data.frame(Included = c("All", "> 0.01%", "> 0.1%","> 1%"),
+                          Phylum = c(nrow(df2),sum(df2$taxprc > 0.0001),sum(df2$taxprc > 0.001),sum(df2$taxprc > 0.01)),
+                          Genus = c(nrow(df3),sum(df3$taxprc > 0.0001),sum(df3$taxprc > 0.001),sum(df3$taxprc > 0.01)),
+                          ASV = c(nrow(df4),sum(df4$taxprc > 0.0001),sum(df4$taxprc > 0.001),sum(df4$taxprc > 0.01)))
+
+# Count of ASV and species in vaginal samples
+kable(df.richness, row.names = F,digits = 1, caption = 'Count of phyla, genera, and ASV in vaginal samples')
+
+# Top 6 dominating phyla (prc abundance)
+kable(head(df2[order(df2$taxprc,decreasing = T),c("Kingdom","Phylum","taxprc")]), row.names = F,digits = 1, caption = 'Average abundance according to phylym')
+# Top 6 dominating (genera prc abundance)
+kable(head(df3[order(df3$taxprc,decreasing = T),c("Kingdom","Phylum","Class","Order","Family","Genus","taxprc")]), row.names = F,digits = 1, caption = 'Average abundance according to genus')
+# Top 6 donimating species (prc abundance)
+kable(head(df4[order(df4$taxprc,decreasing = T),c("Kingdom","Phylum","Class","Order","Family","Genus","Species","name","taxprc")]), row.names = F,digits = 1, caption = 'Average abundance according to ASV')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+The BLAST results and best matching species for each of the top 6 dominant ASVs can be found in the .xlsx file 88TaxToBlast.xlsx**
+
+## 1.3 - Community State Types
+The vaginal microbiome is _not_ a smooth continoum, but a set of very well defined clusters, here refered to as Community State Types (CST), and a few less well defined clusters. These are identified by clustering of _all_ the samples based on Jensen Shannon Divergence as beta diversity measure. Partitioning around medoids clustering is then performed for a range of possible clusters and the optimal number defined based on various cluster statistics.
+
+### 1.3.1 - Define Community State Types
+
+#### 1.3.1.1 - Find optimal number of clusters
+```{r number_of_clusters,eval=T}
+load('./OrdinationRes.RData')
+
+#Pam cluster from 3 to 10 clusters to see what fits best
+pam.df <- data.frame(pam.03 = pam(vag.jsd, 3)$ clustering,
+                     pam.04 = pam(vag.jsd, 4)$ clustering,
+                     pam.05 = pam(vag.jsd, 5)$ clustering,
+                     pam.06 = pam(vag.jsd, 6)$ clustering,
+                     pam.07 = pam(vag.jsd, 7)$ clustering,
+                     pam.08 = pam(vag.jsd, 8)$ clustering,
+                     pam.09 = pam(vag.jsd, 9)$ clustering,
+                     pam.10 = pam(vag.jsd, 10)$ clustering)
+
+# look at cluster statistics
+clust.stat <- data.frame(clustering = colnames(pam.df),
+                         average.between = numeric(length(ncol(pam.df))),
+                         average.within = numeric(length(ncol(pam.df))),
+                         avg.silwidth = numeric(length(ncol(pam.df))),
+                         pearsongamma = numeric(length(ncol(pam.df))),
+                         dunn = numeric(length(ncol(pam.df))),
+                         dunn2 = numeric(length(ncol(pam.df))),
+                         entropy = numeric(length(ncol(pam.df))),
+                         wb.ratio = numeric(length(ncol(pam.df))),
+                         ch = numeric(length(ncol(pam.df))),
+                         widestgap = numeric(length(ncol(pam.df))),
+                         sindex = numeric(length(ncol(pam.df)))
+)
+for (i in 1:ncol(pam.df)){
+  tmp <- cluster.stats(vag.jsd,clustering = pam.df[,i],noisecluster = T)
+  clust.stat[i,] <- c(colnames(pam.df)[i],tmp[c("average.between","average.within","avg.silwidth","pearsongamma","dunn","dunn2","entropy","wb.ratio","ch","widestgap","sindex")])
+}
+stat.melt <- melt(clust.stat,id.vars = "clustering", variable.name = "stat",value.name = "value")
+ggplot(stat.melt, aes(clustering,value)) + geom_bar(stat = "identity") + facet_wrap(facets = "stat", scales = "free") + coord_flip()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+Based on the Pearson version of Hubert's gamma coefficient (pearsongamma), average silhouette width (avg.silwidth) and the Calinski and Harabasz index (ch) 5 or 6 clusters is optimal. Considering the Dunn2 index we consider *6* clusters to be optimal. These are refered to as community state types I to V, with IV being split into IV-a and IV-b.   
+
+#### 1.3.1.2 - Create CSTs
+The ASVs for the top ASVs in each CST are written to **TaxToBlast.xlsx**, Blast results and identified species for each ASV have then been added to this file externally.
+```{r create_clusters,eval=FALSE}
+load('./vag_taxglm.RData')
+load('./OrdinationRes.RData')
+
+# Add clustering
+sample_data(vagX)$CST <- pam(vag.jsd, 6)$clustering
+sample_data(vagX)$CST <- as.factor(sample_data(vagX)$CST)
+
+# top 100 overall ASVs extracted
+ASVtab <- otu_table(vagX.ra) %>% t()
+ss <- rank(apply(ASVtab,2,sum))
+ss <- max(ss) - ss + 1
+df2 <- data.frame(ASVtab[,ss<100], sample_data(vagX)) 
+txtb <- tax_table(vagX) %>% as.data.frame()
+txtb$ASV <- rownames(txtb)
+
+
+tb1ASV <- df2 %>%
+  gather(ASV,cnt,-(dyadnb:CST)) %>%
+  left_join(txtb, by = 'ASV') %>%
+  group_by(dyadnb,Time) %>%
+  mutate(libsize = sum(cnt), 
+         cnt = cnt / libsize) %>%
+  ungroup() %>%
+  group_by(CST,ASV) %>%
+  summarise(totcnt = mean(cnt)*100) %>%
+  ungroup() %>%
+  group_by(CST) %>%
+  mutate(rnk = rank(totcnt), 
+         rnk = max(rnk)-rnk+1) %>%
+  arrange(CST,desc(totcnt)) %>%
+  filter(rnk<6)
+
+kable(tb1ASV,row.names = F,digits = 1, caption = 'Most abundant ASVs in each cluster')
+
+# Identify relevant ASV hashes
+asv.keep <- as.character(unique(tb1ASV[tb1ASV$rnk < 4,"ASV"]))
+tax.keep <- txtb[txtb$ASV %in% asv.keep,]
+rio::export(txtb[txtb$ASV %in% asv.keep,],file = 'TaxToBlast.xlsx')
+
+# Levels of the CST variable is then named based on top 3 ASV in each CST, in accordance with  Gajer et al. (2012)
+levels(sample_data(vagX)$CST) <- list(CST_I = 3, CST_II = 4, CST_III = 5, CST_IV_a = 2, CST_IV_b = 1, CST_V = 6)
+sample_data(vagX.r) <- sample_data(vagX)
+
+# add mothers CST at week 36 to phyX
+dyad.cst36 <- sample_data(vagX) %>%
+  data.frame() %>%
+  filter(Time == 36) %>%
+  select(dyadnb,CST)
+
+df.cst <- data.frame(sample_data(phyX))
+for (i in 1:nrow(dyad.cst36)){
+  df.cst$CST_w36[df.cst$dyadnb == as.character(dyad.cst36$dyadnb[i])] <- as.character(dyad.cst36$CST[i])
+}
+sample_data(phyX) <- df.cst
+save(file = "./phyX_cst.RData", list = c('phyX','vagX','vagX.r'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**phyX_cst.RData** contains the updated phyloseq objects for all samples (phyX), vaginal samples (vagX), and rarefied vaginal samples (vagX.r)
+
+### 1.3.2 - CST composition and stability
+#### 1.3.2.1 - Prepare data
+```{r CST_prep,eval=FALSE}
+load('./vag_taxglm.RData')
+load('./phyX_cst.RData') # must be loaded second as it overwrites the initial vagX and vagX.r
+
+# table with alpha diversity measures
+cst.alpha <- cbind(data.frame(sample_data(vagX.r)),estimate_richness(vagX.r, measures = c("Observed","Shannon"))[,c("Observed","Shannon")]) 
+cst.alpha.stat <- cst.alpha %>%
+  group_by(CST) %>%
+  summarize(Samples = n(),
+            observed_mean = mean(Observed),
+            observed_sd = sd(Observed),
+            SDI_mean = mean(Shannon),
+            SDI_sd = sd(Shannon))
+
+# table with top dominating taxa / ASVs in each CST
+# Phylum
+df2 <- data.frame(otu_table(vagXphy.ra) %>% t(), sample_data(vagX)) 
+txtb <- tax_table(vagXphy) %>% as.data.frame()
+txtb$ASV <- rownames(txtb)
+# tb0 <- df2 %>%
+#   group_by(dyadnb) %>%
+#   mutate(rep = n()) %>%
+#   ungroup() %>%
+#   group_by(CST) %>%
+#   summarise(n = n(), n24 = sum(Time==24),n36 = sum(Time==36),
+#             n_w_rep = sum(rep==2), n24_w_rep = sum(Time==24 & rep==2), n36_w_rep = sum(Time==36 & rep==2))
+
+# tb0$ndyadsame <- c(sum(df2$dyadnb[df2$CST == "CST_I" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_I" & df2$Time == 36]),
+#                    sum(df2$dyadnb[df2$CST == "CST_II" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_II" & df2$Time == 36]),
+#                    sum(df2$dyadnb[df2$CST == "CST_III" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_III" & df2$Time == 36]),
+#                    sum(df2$dyadnb[df2$CST == "CST_IV_a" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_IV_a" & df2$Time == 36]),
+#                    sum(df2$dyadnb[df2$CST == "CST_IV_b" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_IV_b" & df2$Time == 36]),
+#                    sum(df2$dyadnb[df2$CST == "CST_V" & df2$Time == 24] %in% df2$dyadnb[df2$CST == "CST_V" & df2$Time == 36]))
+# tb0$prc24dyadsame <- with(tb0, 100*ndyadsame/n24_w_rep)
+# tb0$prc36dyadsame <- with(tb0, 100*ndyadsame/n36_w_rep)
+
+tb1 <- df2 %>%
+  gather(ASV,cnt, -(dyadnb:CST)) %>%
+  left_join(txtb, by = 'ASV') %>%
+  group_by(dyadnb,Time) %>%
+  mutate(libsize = sum(cnt), 
+         cnt = cnt / libsize) %>%
+  ungroup() %>%
+  group_by(CST,Phylum) %>%
+  summarise(totcnt = mean(cnt)*100) %>%
+  ungroup() %>%
+  group_by(CST) %>%
+  mutate(rnk = rank(totcnt), 
+         rnk = max(rnk)-rnk+1) %>%
+  arrange(CST,desc(totcnt)) %>%
+  filter(rnk<6)
+
+# Genus
+df2 <- data.frame(otu_table(vagXgenus.ra) %>% t(), sample_data(vagX)) 
+txtb <- tax_table(vagXgenus) %>% as.data.frame()
+txtb$ASV <- rownames(txtb)
+tb1g <- df2 %>%
+  gather(ASV,cnt,-(dyadnb:CST)) %>%
+  left_join(txtb, by = 'ASV') %>%
+  group_by(dyadnb,Time) %>%
+  mutate(libsize = sum(cnt), 
+         cnt = cnt / libsize) %>%
+  ungroup() %>%
+  group_by(CST,Genus_simple) %>%
+  summarise(totcnt = mean(cnt)*100) %>%
+  ungroup() %>%
+  group_by(CST) %>%
+  mutate(rnk = rank(totcnt), 
+         rnk = max(rnk)-rnk+1) %>%
+  arrange(CST,desc(totcnt)) %>%
+  filter(rnk<6)
+
+# ASV
+
+ASVtab <- otu_table(vagX.ra) %>% t()
+# top 100 overall
+ss <- rank(apply(ASVtab,2,sum))
+ss <- max(ss) - ss + 1
+df2 <- data.frame(ASVtab[,ss<100], sample_data(vagX)) 
+txtb <- tax_table(vagX) %>% as.data.frame()
+txtb$ASV <- rownames(txtb)
+tb1ASV <- df2 %>%
+  gather(ASV,cnt,-(dyadnb:CST)) %>%
+  left_join(txtb, by = 'ASV') %>%
+  group_by(dyadnb,Time) %>%
+  mutate(libsize = sum(cnt), 
+         cnt = cnt / libsize) %>%
+  ungroup() %>%
+  group_by(CST,ASV) %>%
+  summarise(totcnt = mean(cnt)*100) %>%
+  ungroup() %>%
+  group_by(CST) %>%
+  mutate(rnk = rank(totcnt), 
+         rnk = max(rnk)-rnk+1) %>%
+  arrange(CST,desc(totcnt)) %>%
+  filter(rnk<6)
+
+
+colnames(tb1)[3] <- 'Phylum_prc'
+colnames(tb1g)[3] <- 'Genus_prc'
+colnames(tb1ASV)[3] <- 'ASV_prc'
+tb1m <- merge(merge(tb1,tb1g, by = c('CST','rnk')), tb1ASV,by = c('CST','rnk'))
+
+save(file = './CommunityStateTypes.RData',list = c('vagX','tb0','tb1m','cst.alpha','cst.alpha.stat'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**CommunityStateTypes.RData** contains the necessary data regarding dominant taxa and alpha diversity of the CSTs
+
+#### 1.3.2.2 - Describe CST composition and stability
+Figure 1 - A: Boxplot of obserbed richness by CST, B: boxplot of shannon diversity index by CST, C: boxplot of the 2 most dominant ASV in each CST, colored by CST, and D: Alluvial plot with CST.
+
+```{r CST_description,eval=TRUE,fig.cap='Figure 1: A) Boxplot of obserbed richness by CST, B) boxplot of shannon diversity index by CST, C) boxplot of the 2 most dominant ASV in each CST, colored by CST, and D) Alluvial plot with CST.'}
+load('./CommunityStateTypes.RData')
+
+# tables
+# kable(tb0, caption = 'Sample Distribution, n: number of samples in CST, n_w_rep: number of samples in CST from women with both timepoints represented, n24 / n36: number of samples from week 24 and 36 respectively')
+kable(cst.alpha.stat, caption = 'Observed richness and shannon diversity index (SDI) for each CST', digits = 2)
+print("Statistical test of alpha diversity by CST")
+fit <- aov(Observed ~ CST, data = cst.alpha)
+anova(fit)
+TukeyHSD(fit)
+fit <- aov(Shannon ~ CST, data = cst.alpha)
+anova(fit)
+TukeyHSD(fit)
+
+kable(tb1m, caption = 'Top five Phylums / Genus / ASVs for each CST', digits = 2)
+
+# fig 1 a (boxplot top ASV)
+asv.keep <- as.character(unique(tb1m$ASV[tb1m$rnk < 3]))
+vagX.topasv <- prune_taxa(taxa_names(vagX) %in% asv.keep, transform_sample_counts(vagX, function(x) x/sum(x)*100))
+
+top.asv.melt <- psmelt(vagX.topasv)
+top.asv.melt$ASV <- top.asv.melt$name
+
+df.labels <- data.frame(ASV = c('Genus_Atopobium_36','Genus_Bifidobacterium_60','Genus_Gardnerella_20','Genus_Gardnerella_40','Genus_Lactobacillus_139','Genus_Lactobacillus_268','Lactobacillus_gasseri_37','Genus_Lactobacillus_323','Genus_Megasphaera_22'),
+                        label = c('A. vaginae','B. longum','G. vaginalis_a','G. vaginalis_b','L. iners','L. jensenii','L. gasseri','L. crispatus','M. massiliensis'))
+
+F1a <- ggplot(top.asv.melt, aes(y = ASV, x = Abundance, alpha = 0.5)) + 
+  geom_boxplot(position =position_dodge2(reverse = TRUE), aes(color = CST)) + 
+  geom_boxplot(position =position_dodge2(reverse = TRUE), aes(fill = CST), outlier.shape = 21) + 
+  scale_fill_brewer(palette = 'Set1') + 
+  scale_color_brewer(palette = 'Set1') + 
+  scale_y_discrete(breaks=df.labels$ASV,labels=df.labels$label) + ylab("") +
+  theme_bw() + theme(axis.title = element_text(size = 15), axis.text.x = element_text(size = 10),legend.position = 'none',axis.text.y = element_text(face="italic",size = 10)) #+ 
+
+# fig 1b (Observed)
+F1b <- ggplot(cst.alpha, aes(x = CST, y = Observed, alpha = 0.5)) + 
+  geom_boxplot(aes(color = CST)) + 
+  geom_boxplot(aes(fill = CST), outlier.shape = 21) + 
+  scale_fill_brewer(palette = 'Set1') + 
+  scale_color_brewer(palette = 'Set1') + 
+  ylab("Observed richness") + xlab("") +
+  theme_bw() + theme(axis.title = element_text(size = 15), 
+                     axis.text = element_text(size = 10), 
+                     axis.text.x=element_blank(), 
+                     axis.ticks.x=element_blank(), 
+                     legend.position = 'none')
+
+# fig 1c (Shannon)
+F1c <- ggplot(cst.alpha, aes(x = CST, y= Shannon, alpha = 0.5)) + 
+  geom_boxplot(aes(color = CST)) + 
+  geom_boxplot(aes(fill = CST), outlier.shape = 21) + 
+  scale_fill_brewer(palette = 'Set1') + 
+  scale_color_brewer(palette = 'Set1') + 
+  ylab("Shannon diversity index") + xlab("") + 
+  theme_bw() + theme(axis.title = element_text(size = 15), 
+                     axis.text = element_text(size = 10), 
+                     axis.text.x=element_blank(), 
+                     axis.ticks.x=element_blank(), 
+                     legend.position = 'none')
+
+# fig 1d (allivial plot)
+F1d <- sample_data(vagX) %>%
+  ggplot(data = .,
+         aes(x = Time, stratum = CST, alluvium = dyadnb,
+             # weight = 1,
+             fill = CST, label = CST)) +
+  geom_flow() +
+  scale_fill_brewer(palette = 'Set1') + 
+  scale_x_discrete(expand = c(0,0)) + 
+  geom_stratum(alpha = .5) +
+  # facet_grid(cleandef~trt) + 
+  geom_text(stat = "stratum", size = 3) +
+  theme_bw() + 
+  xlab('Pregnancy week') + 
+  theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10), legend.position = 'right',panel.grid = element_blank(), panel.border = element_blank())
+
+# fig 1
+F1 <- ggdraw() + draw_plot(F1a, 0, 0, 0.4, 1) + 
+  draw_plot(F1b, 0.4, 0.5, 0.2, 0.5) + 
+  draw_plot(F1c, 0.4, 0, 0.2, 0.5) + 
+  draw_plot(F1d, 0.6, 0, 0.4, 1) + 
+  draw_plot_label(c("A", "B","C","D"), c(0,0.4, 0.4, 0.6), c(1,1,0.5,1), size = 15)
+
+pdf('Figure1_CST.pdf',height = 8, width = 12)
+F1
+dev.off()
+
+print(F1)
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+
+#### 1.3.2.3 - Stability between w24 and w36 (Permutational)
+In order to test the stability between time points, a permutation procedure is used. Here, the distance based on individual women from week 24 to week 36 are compared with random assignments of pairs.
+
+##### 1.3.2.3.1 - Perform permutation calculations
+
+```{r CST_perm_calc,eval=FALSE}
+load('./phyX_cst.RData')
+load('./OrdinationRes.RData')
+
+nperm <- 2500
+
+# get dist for all pairs
+getDist <- function(x,D){
+  id <- rownames(D) %in% x$smpname
+  if (sum(id)==2){
+    dd <- D[id,id]
+    dst <- dd[1,2]
+  }
+  else {dst <- NA}
+  return(data.frame(distw24_w36 = dst))
+}
+
+sd_vagX <- sample_data(vagX) 
+sd_vagX$smpname = rownames(sd_vagX)
+
+# Wunifrac
+Dwuf <- as.matrix(vag.WUnifrac)
+
+ddfmodel <- sd_vagX %>%
+  group_by(dyadnb) %>%
+  do(getDist(x = ., Dwuf)) %>%
+  left_join(sd_vagX[sd_vagX$Time==24,], by = 'dyadnb')
+
+ddfperm  <- c()
+for (i in 1:nperm){
+  print(i)
+  sd_vagX$dyadnb2 <- sd_vagX$dyadnb
+  sd_vagX$dyadnb2[sd_vagX$Time==36] <- sample(sd_vagX$dyadnb2[sd_vagX$Time==36])
+  ddf2 <- sd_vagX %>%
+    group_by(dyadnb2) %>%
+    do(getDist(x = ., Dwuf)) %>%
+    mutate(permutation = i)
+  ddfperm <- rbind(ddfperm,ddf2)
+}
+
+# calculate the statistics
+pv <- ddfperm %>%
+  left_join(ddfmodel, by = c('dyadnb2' = 'dyadnb')) %>%
+  filter(!is.na(distw24_w36.x) & !is.na(distw24_w36.y)) %>%
+  group_by(dyadnb2) %>%
+  summarise(n = n(), 
+            npos = sum(distw24_w36.x < distw24_w36.x), 
+            freq = npos / n) %>%
+  ungroup %>%
+  summarise(pv = mean(freq))
+
+dfmodelwuf <- ddfmodel
+dfpermwuf <- ddfperm
+pv_wuf <- pv
+
+# JSD model
+Djsd <- as.matrix(vag.jsd)
+
+ddfmodel <- sd_vagX %>%
+  group_by(dyadnb) %>%
+  do(getDist(x = ., Djsd)) %>%
+  left_join(sd_vagX[sd_vagX$Time==24,], by = 'dyadnb')
+
+ddfperm  <- c()
+for (i in 1:nperm){
+  print(i)
+  sd_vagX$dyadnb2 <- sd_vagX$dyadnb
+  sd_vagX$dyadnb2[sd_vagX$Time==36] <- sample(sd_vagX$dyadnb2[sd_vagX$Time==36])
+  ddf2 <- sd_vagX %>%
+    group_by(dyadnb2) %>%
+    do(getDist(x = ., Djsd)) %>%
+    mutate(permutation = i)
+  ddfperm <- rbind(ddfperm,ddf2)
+}
+
+# calculate the statistics
+pv <- ddfperm %>%
+  left_join(ddfmodel, by = c('dyadnb2' = 'dyadnb')) %>%
+  filter(!is.na(distw24_w36.x) & !is.na(distw24_w36.y)) %>%
+  group_by(dyadnb2) %>%
+  summarise(n = n(), 
+            npos = sum(distw24_w36.x < distw24_w36.x), 
+            freq = npos / n) %>%
+  ungroup %>%
+  summarise(pv = mean(freq))
+
+dfmodeljsd <- ddfmodel
+dfpermjsd <- ddfperm
+pv_jsd <- pv
+
+
+save(file = './Stability_w24_to_2w6_permresults.RData',
+     list = c('dfmodelwuf','dfpermwuf','pv_wuf','dfmodeljsd','dfpermjsd','pv_jsd'))
+
+# clean environment
+rm(list = ls(all = TRUE))	 
+```
+**Stability_w24_to_2w6_permresults.RData** contains the permutation results for CST stability
+
+
+
+##### 1.3.2.3.2 - CST stability results
+```{r CST_stability_output, eval = TRUE}
+load('./Stability_w24_to_2w6_permresults.RData')
+load('./phyX_cst.RData')
+
+sd_vagX <- sample_data(vagX) 
+# remove singletons
+ttb <- sd_vagX %>%
+  group_by(dyadnb) %>%
+  mutate(n = n()) %>%
+  filter(n==2) %>%
+  group_by(dyadnb) %>%
+  mutate(insame = ifelse(length(unique(CST))==1,1,0)) %>%
+  group_by(CST,Time) %>%
+  summarise(n = n(), 
+            n_insame = sum(insame), 
+            prc_insame = 100*n_insame/n)
+
+ttb1 <- ttb %>% 
+  filter(Time==24) %>%
+  ungroup %>%
+  summarise(n_total = sum(n),
+            n_insame = sum(n_insame),
+            n_changed = n_total-sum(n_insame)) %>%
+  mutate(n_insame = paste(n_insame, " (", format(round(100*n_insame/n_total,1),nsmall = 1),")", sep = ""),
+         n_changed = paste(n_changed, " (", format(round(100*n_changed/n_total,1),nsmall = 1),")", sep = ""))
+
+ttb2 <- ttb %>%
+  mutate(n_insame = paste(n_insame, " (", format(round(100*n_insame/n,1),nsmall = 1),")", sep = "")) %>%
+  select(-prc_insame)
+
+
+kable(ttb1,caption = 'overall stability descriptives from week 24 and week 36 dependent', digits = 1,
+      col.names = c("Women", "In same (%)","Changed (%)"))
+
+kable(ttb2,caption = 'CST descriptives from week 24 and week 36 dependent', digits = 1,
+      col.names = c("CST", "Time point (weeks)", "Women","In same (%)"), align=c("l","c","c","r"))
+
+# prep data
+df.cst <- data.frame(sample_data(vagX))
+df.dyad <- data.frame(table(df.cst$dyadnb))
+df.cst.full <- df.cst[df.cst$dyadnb %in% df.dyad$Var1[df.dyad$Freq == 2],]
+
+df.cst.24 <- df.cst.full[df.cst.full$Time == 24,]
+df.cst.36 <- df.cst.full[df.cst.full$Time == 36,]
+
+# Change of CST
+for (i in 1:nrow(df.cst.24)){
+  if (df.cst.24$CST[i] == df.cst.36$CST[df.cst.36$dyadnb == df.cst.24$dyadnb[i]]) df.cst.24$w36[i] <- "same" else df.cst.24$w36[i] <- "changed"
+}
+print("Pearson's Chi-squared test of CST stability")
+chisq.bintest(df.cst.24$w36 ~ df.cst.24$CST,alpha = 0.05)
+
+
+
+dfwuf <- dfpermwuf %>%
+  left_join(dfmodelwuf, by = c('dyadnb2' = 'dyadnb')) 
+dfjsd <- dfpermjsd %>%
+  left_join(dfmodeljsd, by = c('dyadnb2' = 'dyadnb')) 
+
+
+DF <- bind_rows(data.frame(dfwuf,method = 'wuf'),data.frame(dfjsd,method = 'jsd')) #%>%
+
+tb <- DF %>%
+  filter(!is.na(distw24_w36.y) & permutation==1) %>%
+  group_by(method) %>%
+  summarise(n= n(), median_dist = median(distw24_w36.y, na.rm = T))
+
+tb_CST <- DF %>%
+  filter(!is.na(distw24_w36.y) & permutation==1) %>%
+  group_by(method,CST) %>%
+  summarise(n= n(), median_dist = median(distw24_w36.y, na.rm = T))
+
+tb_CSTpv <- DF %>%
+  filter(!is.na(distw24_w36.y) & permutation==1) %>%
+  group_by(method) %>%
+  do(kruskal.test(data = .,distw24_w36.y~CST) %>% tidy %>% select(-method))
+
+
+tb2 <- DF %>%
+  filter(!is.na(distw24_w36.x) & !is.na(distw24_w36.y)) %>%
+  group_by(method, permutation) %>%
+  summarise(median_permdist = median(distw24_w36.x)) %>%
+  ungroup %>%
+  left_join(tb) %>%
+  group_by(method) %>%
+  summarise(
+    n = n[1],
+    median_dist = median_dist[1], 
+    median_permdist = mean(median_permdist),
+    R = median_permdist / median_dist,
+    pv = sum(1+(median_permdist<median_dist)) / (1+n()))
+
+kable(tb2, caption = 'Stability between week 24 and week 36 assigned as median distance between pairs as compared with mismatched pairs (# permutations = 2500)', digits = 5)
+
+kable(tb_CST,caption = 'Stability between week 24 and week 36 dependent on week 24 CST', digits = 4)
+
+ggplot(data = tb_CST, aes(CST, median_dist, fill = CST)) + 
+  geom_bar(stat = 'identity') +
+  scale_fill_brewer(palette = 'Set1') + 
+  facet_wrap(~method, scales = 'free') + 
+  theme_bw() + 
+  theme(legend.position = 'none')
+
+kable(tb_CSTpv,caption = 'Inference (kruskal walis) for differences in stability between week 24 and week 36 dependent on week 24 CST', digits = 100)
+
+# clean environment
+rm(list = ls(all = TRUE))	 
+```
+
+The statistics indicate that stability depends on CST. 
+
+## 1.4 Beta diversity of vaginal
+Here PCoA plots show the distirbution of the samples based on CST and beta diversity metric. 
+Clearly, some of the CST are more well defined than others. E.g. CST_IV_b and CST_IV_c are all over the place. This is further confirmed by the statistical analysis of the betadispertion wich clearly show that CST IVa and CST IVb are significantly more dispersed than the other CSTs, with CST I and CST II being the tightest clusters
+
+### 1.4.1 - NMDS plot of vaginal samples
+Figure S1: NMDS plot based on jensen-Shannon divergence, samples colored by CST and grey lines connect samples from the individual women
+
+```{r vag_nmds,eval=T}
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+load('./phyX_cst.RData')
+load('./OrdinationRes.RData')
+
+df <- data.frame(method = 'jsd', sample_data(vagX),vag.all.jsd.nmds$points)
+
+# PCoA with CST 1 vs 2
+g1 <- ggplot(data = df, aes(MDS1,MDS2, color = CST,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'none')
+
+# PCoA with CST 3 vs 4
+g2 <- ggplot(data = df, aes(MDS3,MDS4, color = CST,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'bottom')
+
+
+legend <- g_legend(g2)
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, 0.1, 0.5, 0.9) + 
+  draw_plot(g2 + mytheme+ theme(legend.position = "hidden"), 0.5, 0.1, 0.5, 0.9)+
+  draw_grob(legend, 0, 0, 1, .1) 
+
+print(G1)
+
+pdf('FigureS1.pdf', width = 10, height = 5)
+print(G1)
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 1.4.2 - Statistical test of beta diversity
+Betadisper test differences in dispersion of each cluster, while PERMANOVA test how much of the overall differences can be explained by the variables
+
+```{r vag_beta_stats, eval=T}
+load('./OrdinationRes.RData')
+load(file = "./phyX_cst.RData")
+
+df <- data.frame(sample_data(vagX))
+# Beta diversity dispersion
+jsd.disp <- betadisper(vag.jsd, df$CST)
+anova(jsd.disp)
+TukeyHSD(jsd.disp)
+boxplot(jsd.disp)
+
+# PERMANOVA
+print("PERMANOVA of Time point using Jensen-Shannon divergence")
+adonis(vag.jsd ~ Time, data = df) 
+print("PERMANOVA of CST using Jensen-Shannon divergence")
+adonis(vag.jsd ~ CST, data = df) 
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+# 2 - Infant Samples
+## 2.1 - Delivery mode
+```{r infant_delivery,eval=T}
+load(file = "./phyX_cst.RData")
+infant <- sample_data(phyX) %>%
+  data.frame() %>%
+  filter(Type !=  "V") %>%
+  filter(!duplicated(dyadnb))
+
+rbind(table(infant$DELIVERY) ,
+      100*table(infant$DELIVERY) / dim(infant)[1])
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+## 2.2 - Airway microbiome
+### 2.2.1 - Subset airway samples
+```{r air_prep,eval=FALSE}
+load(file = "./phyX_cst.RData")
+# subset airway samples
+# ASV level 
+airX.raw <- subset_samples(phyX, Type == "T")
+airX <- prune_taxa(taxa_sums(airX.raw) > 0, airX.raw)
+airX.r <- rarefy_even_depth(airX, 2000, rngseed = 2)
+airX.ra <- transform_sample_counts(airX, function(x) x/sum(x))
+
+#Phylum level
+airXphy <- tax_glom(airX, "Phylum")
+taxa_names(airXphy) <- tax_table(airXphy)[,2]
+airXphy.ra <- transform_sample_counts(airXphy, function(x) x/sum(x))
+
+# Genus level
+airXgenus <- tax_glom(airX,'Genus_simple')
+taxa_names(airXgenus) <- tax_table(airXgenus)[,6]
+airXgenus.ra <- transform_sample_counts(airXgenus, function(x) x/sum(x))
+
+save(file = './air_taxglm.RData',list = c('airX','airXphy','airXgenus', 'airX.r','airXphy.ra','airXgenus.ra', 'airX.ra'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**air_taxglm.RData** contains phyloseq objects with airway samples at phylum, genus and ASV level for both read counts and relative abundances, as well as a rarefied (2000 reads/sample) at ASV level.
+
+### 2.2.2 - Dominant airway taxa and overall richness
+The distribution of the airway reads are here summarized on phylum, genus and individual ASV level. 
+```{r air_taxa,eval=TRUE}
+load('./air_taxglm.RData')
+
+df2 <- data.frame(tax_table(airXphy), taxprc = 100*taxa_sums(airXphy.ra)/length(sample_names(airXphy.ra)))
+
+df3 <- data.frame(tax_table(airXgenus),taxprc = 100*taxa_sums(airXgenus.ra)/length(sample_names(airXgenus.ra)))
+df3$Genus <- df3$Genus_simple
+
+df4 <- data.frame(tax_table(airX),taxprc = 100*taxa_sums(airX.ra)/length(sample_names(airX.ra)))
+
+df.count <- data.frame(Included = c("All", "> 0.01%", "> 0.1%","> 1%"),
+                          Phylum = c(nrow(df2),sum(df2$taxprc > 0.01),sum(df2$taxprc > 0.1),sum(df2$taxprc > 1)),
+                          Genus = c(nrow(df3),sum(df3$taxprc > 0.01),sum(df3$taxprc > 0.1),sum(df3$taxprc > 1)),
+                          ASV = c(nrow(df4),sum(df4$taxprc > 0.01),sum(df4$taxprc > 0.1),sum(df4$taxprc > 1)))
+
+# Count of ASV and species in airway samples
+kable(df.count, row.names = F,digits = 1, caption = 'Abundance of phyla, genera, and ASV in airway samples')
+
+# Top 3 dominating phyla"
+kable(head(df2[order(df2$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Abundance according to phylym')
+# Top 5 dominating genus"
+kable(head(df3[order(df3$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Abundance according to genus')
+# Top 5 dominating ASV"
+kable(head(df4[order(df4$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Abundance according to ASV')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 2.2.3 - Airway alpha diversity
+For this part we use the rarefied samples (2000 reads/sample)
+```{r air_alpha,eval=TRUE}
+load('./air_taxglm.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+# test of alpha diversity by CST and time
+df.adiv <- cbind(data.frame(sample_data(airX.r)), estimate_richness(airX.r,measures = c("Observed","Shannon")))
+levels(df.adiv$Time) <- list(One.week = "1w", One.month = "1m", Three.months = "3m")
+
+df.adiv.summary <- df.adiv %>%
+  group_by(Time,DELIVERY) %>%
+  summarise(n = n(), Observed_mean = mean(Observed), Observed_sd = sd(Observed), Shannon_mean = mean(Shannon), Shannon_sd = sd(Shannon))
+
+df.adiv.t <- df.adiv %>%
+  group_by(Time) %>%
+  summarise(n = n(), Observed_mean = mean(Observed), Observed_sd = sd(Observed), Shannon_mean = mean(Shannon), Shannon_sd = sd(Shannon))
+
+kable(df.adiv.t, row.names = F,digits = 3, caption = 'Summary of alpha diversity by time')
+kable(df.adiv.summary, row.names = F,digits = 3, caption = 'Summary of alpha diversity by time and delivery')
+
+# Create plot
+g1 <- ggplot(df.adiv, aes(x = Time, y = Observed, fill = DELIVERY)) + geom_boxplot()+ coord_cartesian(ylim = c(0,50)) + ylab("Observed richness")
+g2 <- ggplot(df.adiv, aes(x = Time, y = Shannon, fill = DELIVERY)) + 
+  geom_boxplot() + 
+  ylab("Shannon diversity index")+ 
+  theme(legend.position = 'bottom')
+legend <- g_legend(g2)
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, 0.1, 0.5, 0.9) + 
+  draw_plot(g2 + mytheme+ theme(legend.position = "hidden"), 0.5, 0.1, 0.5, 0.9)+
+  draw_grob(legend, 0, 0, 1, .1) 
+
+print(G1)
+
+# Statistical testing
+print("Statistical test of alpha diversity by Time and Delivery method")
+fit <- aov(Observed ~ Time+DELIVERY, data = df.adiv)
+anova(fit)
+TukeyHSD(fit)
+fit <- aov(Shannon ~ Time+DELIVERY, data = df.adiv)
+anova(fit)
+TukeyHSD(fit)
+
+print("Alpha diversity does not differ dependent on mothers vaginal CST at week 36")
+fit <- aov(Observed ~ Time+CST_w36, data = df.adiv)
+anova(fit)
+fit <- aov(Shannon ~ Time+CST_w36, data = df.adiv)
+anova(fit)
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 2.2.4 - Airway beta diversity
+#### 2.2.4.1 - Preparation
+Calculation of Weighted UniFrac distances and NMDS ordination for airway samples
+Output of this section in './air_OrdinationRes.RData'
+```{r air_beta_calc,eval=FALSE}
+load('./air_taxglm.RData')
+
+cl <- parallel::makeCluster(4)
+doParallel::registerDoParallel(cl)
+air.WUnifrac <- UniFrac(airX, weighted=TRUE, parallel = TRUE)
+air.all.nmds <- metaMDS(air.WUnifrac, k = 4, trymax = 100)
+
+save(file = './air_OrdinationRes.RData',list = c('air.WUnifrac','air.all.nmds'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**air_OrdinationRes.RData** contains weighted UniFrac distances and NMDS ordination of the airway samples
+
+#### 2.2.4.2 - Plots and statistics 
+```{r air_beta_plot_stat,eval=T}
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+load('./air_taxglm.RData')
+load('./air_OrdinationRes.RData')
+
+
+df.plot <- plot_ordination(airX, air.all.nmds,axes = 1:4,justDF = TRUE)
+
+# PCoA with delivery axis 1 vs 2
+g1 <- ggplot(data = df.plot, aes(NMDS1,NMDS2, color = DELIVERY,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST_w36)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'none')
+
+# PCoA with delivery axis 3 vs 4
+g2 <- ggplot(data = df.plot, aes(NMDS3,NMDS4, color = CST_w36,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST_w36)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'bottom')
+
+
+legend <- g_legend(g2)
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, 0.1, 0.5, 0.9) + 
+  draw_plot(g2 + mytheme+ theme(legend.position = "hidden"), 0.5, 0.1, 0.5, 0.9)+
+  draw_grob(legend, 0, 0, 1, .1) 
+
+print(G1)
+
+pdf('FigureS2a.pdf', width = 10, height = 5)
+print(G1)
+dev.off()
+
+print("PERMANOVA of Time using weighted Unifrac distances")
+adonis(air.WUnifrac ~ Time, strata = df.plot$dyadnb, data = df.plot)
+print("PERMANOVA of mothers CST at week 36 using weighted Unifrac distances")
+adonis(air.WUnifrac ~ CST_w36, data = df.plot,strata = df.plot$dyadnb) 
+adonis(air.WUnifrac ~ Time*CST_w36, data = df.plot,strata = df.plot$dyadnb) 
+print("PERMANOVA of Delivery using weighted Unifrac distances")
+adonis(air.WUnifrac ~ DELIVERY, data = df.plot,strata = df.plot$dyadnb) 
+adonis(air.WUnifrac ~ Time*DELIVERY, data = df.plot,strata = df.plot$dyadnb) 
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+## 2.3 - Fecal microbiome
+### 2.3.1 - Subset fecal samples
+
+```{r fec_prep,eval=FALSE}
+load(file = './phyX_cst.RData')
+# ASV level
+fecX.raw <- subset_samples(phyX, Type == "F")
+fecX <- prune_taxa(taxa_sums(fecX.raw) > 0, fecX.raw)
+fecX.r <- rarefy_even_depth(fecX, 2000, rngseed = 2)
+fecX.ra <- transform_sample_counts(fecX, function(x) x/sum(x))
+
+# Phylum level
+fecXphy <- tax_glom(fecX, "Phylum")
+taxa_names(fecXphy) <- tax_table(fecXphy)[,2]
+fecXphy.ra <- transform_sample_counts(fecXphy, function(x) x/sum(x))
+
+# Genus level
+fecXgenus <- tax_glom(fecX,'Genus_simple')
+taxa_names(fecXgenus) <- tax_table(fecXgenus)[,6]
+fecXgenus.ra <- transform_sample_counts(fecXgenus, function(x) x/sum(x))
+
+save(file = './fec_taxglm.RData',list = c('fecX','fecXphy','fecXgenus', 'fecX.r','fecXphy.ra','fecXgenus.ra', 'fecX.ra'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**fec_taxglm.RData** contains phyloseq objects with fecal samples at phylum, genus and ASV level for both read counts and relative abundances, as well as a rarefied (2000 reads/sample) at ASV level.
+
+### 2.3.2 - Dominant fecal taxa and overall richness
+The distribution of the fecal reads are here summarized on phylum, genus and individual ASV level. 
+```{r fec_taxa,eval=TRUE}
+load('./fec_taxglm.RData')
+
+# Create tables with dominating taxa
+df2 <- data.frame(tax_table(fecXphy), taxprc = 100*taxa_sums(fecXphy.ra)/length(sample_names(fecXphy.ra)))
+
+df3 <- data.frame(tax_table(fecXgenus),taxprc = 100*taxa_sums(fecXgenus.ra)/length(sample_names(fecXgenus.ra)))
+df3$Genus <- df3$Genus_simple
+
+df4 <- data.frame(tax_table(fecX),taxprc = 100*taxa_sums(fecX.ra)/length(sample_names(fecX.ra)))
+
+
+# Create richness table
+df.richness <- data.frame(Included = c("All", "> 0.01%", "> 0.1%","> 1%"),
+                          Phylum = c(nrow(df2),sum(df2$taxprc > 0.01),sum(df2$taxprc > 0.1),sum(df2$taxprc > 1)),
+                          Genus = c(nrow(df3),sum(df3$taxprc > 0.01),sum(df3$taxprc > 0.1),sum(df3$taxprc > 1)),
+                          ASV = c(nrow(df4),sum(df4$taxprc > 0.01),sum(df4$taxprc > 0.1),sum(df4$taxprc > 1)))
+
+# Count of ASV and species in fecal samples
+kable(df.richness, row.names = F,digits = 1, caption = 'Count of phyla, genera, and ASV in fecal samples')
+
+# Top 3 dominating phyla prc reads "Firmicutes (85.0%), Acinobacteria (11.8%) and Proteobacteria (2.0%)"
+kable(head(df2[order(df2$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to phylym')
+# Top 2 dominating genus prc reads "Lactobacillus (78.5%) and Gardnerella (8.7%)"
+kable(head(df3[order(df3$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to genus')
+# Top 4 Lactobacilli  "The most abundant lactobacilli were L. crispatus (33.3%), L. iners (28.6%), L. gasseri (10.7%), and L. jensenii (4.9%). ""
+kable(head(df4[order(df4$taxprc,decreasing = T),]), row.names = F,digits = 1, caption = 'Distribution of reads according to ASV')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 2.3.3 - Fecal alpha diversity
+For this part we use the rarefied samples (2000 reads/sample)
+```{r fec_alpha,eval=TRUE}
+load('./fec_taxglm.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+# test of alpha diversity by CST and time
+df.adiv <- cbind(data.frame(sample_data(fecX.r)), estimate_richness(fecX.r,measures = c("Observed","Shannon")))
+levels(df.adiv$Time) <- list(One.week = "1w", One.month = "1m", One.year = "1y")
+
+df.adiv.summary <- df.adiv %>%
+  group_by(Time,DELIVERY) %>%
+  summarise(n = n(), Observed_mean = mean(Observed), Observed_sd = sd(Observed), Shannon_mean = mean(Shannon), Shannon_sd = sd(Shannon))
+
+df.adiv.t <- df.adiv %>%
+  group_by(Time) %>%
+  summarise(n = n(), Observed_mean = mean(Observed), Observed_sd = sd(Observed), Shannon_mean = mean(Shannon), Shannon_sd = sd(Shannon))
+
+kable(df.adiv.t, row.names = F,digits = 3, caption = 'Summary of alpha diversity by time')
+kable(df.adiv.summary, row.names = F,digits = 3, caption = 'Summary of alpha diversity by time and delivery')
+
+# Create plot
+g1 <- ggplot(df.adiv, aes(x = Time, y = Observed, fill = DELIVERY)) + geom_boxplot() + ylab("Observed richness")+ coord_cartesian(ylim = c(0,125))
+g2 <- ggplot(df.adiv, aes(x = Time, y = Shannon, fill = DELIVERY)) + 
+  geom_boxplot() + 
+  ylab("Shannon diversity index")+ 
+  theme(legend.position = 'bottom')
+legend <- g_legend(g2)
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, 0.1, 0.5, 0.9) + 
+  draw_plot(g2 + mytheme+ theme(legend.position = "hidden"), 0.5, 0.1, 0.5, 0.9)+
+  draw_grob(legend, 0, 0, 1, .1) 
+
+print(G1)
+
+# Statistical testing
+print("Statistical test of alpha diversity by Time and Delivery method")
+fit <- aov(Observed ~ Time+DELIVERY, data = df.adiv)
+anova(fit)
+TukeyHSD(fit)
+fit <- aov(Shannon ~ Time+DELIVERY, data = df.adiv)
+anova(fit)
+TukeyHSD(fit)
+
+print("Alpha diversity does not differ dependent on mothers vaginal CST at week 36")
+fit <- aov(Observed ~ Time+CST_w36, data = df.adiv)
+anova(fit)
+fit <- aov(Shannon ~ Time+CST_w36, data = df.adiv)
+anova(fit)
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 2.3.4 - Fecal beta diversity
+#### 2.3.4.1 - Preparation
+Calculation of Weighted UniFrac distances and NMDS ordination for fecal samples
+```{r fec_beta_calc,eval=FALSE}
+load('./fec_taxglm.RData')
+
+fec.active <- prune_taxa(taxa_sums(fecX) > 0, fecX)
+
+cl <- parallel::makeCluster(4)
+doParallel::registerDoParallel(cl)
+fec.WUnifrac <- UniFrac(fec.active, weighted=TRUE, parallel = TRUE)
+fec.all.nmds <- metaMDS(fec.WUnifrac, k = 4, trymax = 100)
+
+save(file = './fec_OrdinationRes.RData',list = c('fec.WUnifrac','fec.all.nmds'))
+```
+**fec_OrdinationRes.RData** contains weighted UniFrac distances and NMDS ordination of the fecal samples
+
+#### 2.3.4.2 - Plots and statistics 
+```{r fec_beta_plot_stat,eval=T}
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+load('./fec_taxglm.RData')
+load('./fec_OrdinationRes.RData')
+
+
+df.plot <- plot_ordination(fecX, fec.all.nmds, axes = 1:4,justDF = TRUE)
+
+# PCoA with delivery axis 1 vs 2
+g1 <- ggplot(data = df.plot, aes(NMDS1,NMDS2, color = CST_w36,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST_w36)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'none')
+
+# PCoA with delivery axis 3 vs 4
+g2 <- ggplot(data = df.plot, aes(NMDS3,NMDS4, color = CST_w36,group= dyadnb)) + 
+  stat_ellipse(aes(group = CST_w36)) + 
+  geom_line(color = 'grey90') + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'bottom')
+
+
+legend <- g_legend(g2)
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, 0.1, 0.5, 0.9) + 
+  draw_plot(g2 + mytheme+ theme(legend.position = "hidden"), 0.5, 0.1, 0.5, 0.9)+
+  draw_grob(legend, 0, 0, 1, .1) 
+
+print(G1)
+
+pdf('FigureS2b.pdf', width = 10, height = 5)
+print(G1)
+dev.off()
+
+print("PERMANOVA of Time using weighted Unifrac distances")
+adonis(fec.WUnifrac ~ Time, strata = df.plot$dyadnb, data = df.plot)
+print("PERMANOVA of mothers CST at week 36 using weighted Unifrac distances")
+adonis(fec.WUnifrac ~ CST_w36, data = df.plot,strata = df.plot$dyadnb) 
+adonis(fec.WUnifrac ~ Time*CST_w36, data = df.plot,strata = df.plot$dyadnb) 
+print("PERMANOVA of Delivery using weighted Unifrac distances")
+adonis(fec.WUnifrac ~ DELIVERY, data = df.plot,strata = df.plot$dyadnb) 
+adonis(fec.WUnifrac ~ Time*DELIVERY, data = df.plot,strata = df.plot$dyadnb) 
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+# 3 - Transfer
+## 3.1 - Preparation
+
+### 3.1.1 - Calculation of ALL individual ASV models
+This is the foundation of all further analysis of transfer from mother to infant
+Output of this section in './ORresults.RData'
+
+```{r transfer_base_calc,eval=FALSE}
+# load transfer functions
+source('transferFunctions.R')
+nperm <-1000
+
+# load data 
+load(file = './phyX_cst.RData')
+
+######### VAGINAL BORN
+# w36 vs F week 1
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36' & DELIVERY=='Normal')
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F' & DELIVERY=='Normal') 
+
+source('getTransferStats.R')
+STAT_w36_F1w_norm <- STAT
+permSTAT_w36_F1w_norm <- permSTATfisher
+
+# w36 vs F month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F' & DELIVERY=='Normal') 
+source('getTransferStats.R')
+STAT_w36_F1m_norm <- STAT
+permSTAT_w36_F1m_norm <- permSTATfisher
+
+# w36 vs F year 1
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F' & DELIVERY=='Normal') 
+source('getTransferStats.R')
+STAT_w36_F1y_norm <- STAT
+permSTAT_w36_F1y_norm <- permSTATfisher
+
+# w36 vs T week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T' & DELIVERY=='Normal') 
+source('getTransferStats.R')
+STAT_w36_T1w_norm <- STAT
+permSTAT_w36_T1w_norm <- permSTATfisher
+
+# w36 vs T month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T' & DELIVERY=='Normal') 
+source('getTransferStats.R')
+STAT_w36_T1m_norm <- STAT
+permSTAT_w36_T1m_norm <- permSTATfisher
+
+# w36 vs T month 3
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T' & DELIVERY=='Normal') 
+source('getTransferStats.R')
+STAT_w36_T3m_norm <- STAT
+permSTAT_w36_T3m_norm <- permSTATfisher
+
+######### C-sectio BORN
+# w36 vs F week 1
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36' & DELIVERY!='Normal')
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_F1w_csec <- STAT
+permSTAT_w36_F1w_csec <- permSTATfisher
+
+# w36 vs F month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_F1m_csec <- STAT
+permSTAT_w36_F1m_csec <- permSTATfisher
+
+# w36 vs F year 1
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_F1y_csec <- STAT
+permSTAT_w36_F1y_csec <- permSTATfisher
+
+# w36 vs T week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_T1w_csec <- STAT
+permSTAT_w36_T1w_csec <- permSTATfisher
+
+# w36 vs T month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_T1m_csec <- STAT
+permSTAT_w36_T1m_csec <- permSTATfisher
+
+# w36 vs T month 3
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T' & DELIVERY!='Normal') 
+source('getTransferStats.R')
+STAT_w36_T3m_csec <- STAT
+permSTAT_w36_T3m_csec <- permSTATfisher
+
+######### C-sectio - planned 
+# w36 vs F week 1
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36' & DELIVERY=='Planned sectio')
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_F1w_csec_planned <- STAT
+permSTAT_w36_F1w_csec_planned <- permSTATfisher
+
+# w36 vs F month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_F1m_csec_planned <- STAT
+permSTAT_w36_F1m_csec_planned <- permSTATfisher
+
+# w36 vs F year 1
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_F1y_csec_planned <- STAT
+permSTAT_w36_F1y_csec_planned <- permSTATfisher
+
+# w36 vs T week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_T1w_csec_planned <- STAT
+permSTAT_w36_T1w_csec_planned <- permSTATfisher
+
+# w36 vs T month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_T1m_csec_planned <- STAT
+permSTAT_w36_T1m_csec_planned <- permSTATfisher
+
+# w36 vs T month 3
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T' & DELIVERY=='Planned sectio') 
+source('getTransferStats.R')
+STAT_w36_T3m_csec_planned <- STAT
+permSTAT_w36_T3m_csec_planned <- permSTATfisher
+
+######### C-sectio - Acute
+# w36 vs F week 1
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36' & DELIVERY=='Acute sectio')
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_F1w_csec_acute <- STAT
+permSTAT_w36_F1w_csec_acute <- permSTATfisher
+
+# w36 vs F month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_F1m_csec_acute <- STAT
+permSTAT_w36_F1m_csec_acute <- permSTATfisher
+
+# w36 vs F year 1
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_F1y_csec_acute <- STAT
+permSTAT_w36_F1y_csec_acute <- permSTATfisher
+
+# w36 vs T week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_T1w_csec_acute <- STAT
+permSTAT_w36_T1w_csec_acute <- permSTATfisher
+
+# w36 vs T month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_T1m_csec_acute <- STAT
+permSTAT_w36_T1m_csec_acute <- permSTATfisher
+
+# w36 vs T month 3
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T' & DELIVERY=='Acute sectio') 
+source('getTransferStats.R')
+STAT_w36_T3m_csec_acute <- STAT
+permSTAT_w36_T3m_csec_acute <- permSTATfisher
+
+# save.image('./tmp_backup.RData')
+save.image('./ORresults.RData')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**ORresults.RData** contains all calculated odds ratios for transfer across delivery mode, infant sample type and time point
+
+### 3.1.2 - Permutational inference calculation
+
+A permutation test between c-sectio and vaginal birth are conducted for all combinations. 
+#### 3.1.2.1 - Calculations
+
+```{r inferenceTransferStat,eval=FALSE}
+# load transfer functions
+source('transferFunctions.R')
+nperm <-1000
+
+# load data 
+load(file = './phyX_cst.RData')
+
+# w36 vs F week 1
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36')
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F') 
+source('inferenceTransferStat.R')
+WeigtedRatio_F1w <- wrperm
+
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F') 
+source('inferenceTransferStat.R')
+WeigtedRatio_F1m <- wrperm
+
+
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F') 
+source('inferenceTransferStat.R')
+WeigtedRatio_F1y <- wrperm
+
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T') 
+source('inferenceTransferStat.R')
+WeigtedRatio_T1w <- wrperm
+
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T') 
+source('inferenceTransferStat.R')
+WeigtedRatio_T1m <- wrperm
+
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T') 
+source('inferenceTransferStat.R')
+WeigtedRatio_T3m <- wrperm
+
+getPermutationPV <- function(WR){
+  pv <- sum(WR$Perm_ratioratio>WR$Model_ratioratio[1]) / dim(WR)[1]
+  df <- data.frame(Model_ratioratio = WR$Model_ratioratio[1],
+                   niter = dim(WR)[1]/2, 
+                   Perm_ratioratio_median = median(WR$Perm_ratioratio), 
+                   Perm_ratioratio_mean = mean(WR$Perm_ratioratio),
+                   pv = pv)
+  return(df)
+}
+WRpermstats <- rbind(
+  data.frame(Type = 'Fecal', Time = 7, getPermutationPV(WeigtedRatio_F1w)),
+  data.frame(Type = 'Fecal', Time = 30, getPermutationPV(WeigtedRatio_F1m)),
+  data.frame(Type = 'Fecal', Time = 300, getPermutationPV(WeigtedRatio_F1y)),
+  data.frame(Type = 'Airways', Time = 7, getPermutationPV(WeigtedRatio_T1w)),
+  data.frame(Type = 'Airways', Time = 30, getPermutationPV(WeigtedRatio_T1m)),
+  data.frame(Type = 'Airways', Time = 90, getPermutationPV(WeigtedRatio_T3m)))
+
+
+save(file = './weighted_permutation_results_onesided.RData', list = c('WRpermstats'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**weighted_permutation_results_onesided.RData** contains the permutations results for the transfer odds
+
+#### 3.1.2.2 - Format output
+```{r, eval=TRUE}
+load('./weighted_permutation_results_onesided.RData')
+load('./ORresults.RData')
+
+STATtot <- rbind(
+  data.frame(STAT_w36_F1m_csec, time =  30, type =  'Fecal', delivery =  'csec'),
+  data.frame(STAT_w36_F1m_norm, time =  30, type =  'Fecal', delivery =  'norm'),
+  data.frame(STAT_w36_F1w_csec, time =  7, type =  'Fecal', delivery =  'csec'),
+  data.frame(STAT_w36_F1w_norm, time =  7, type =  'Fecal', delivery =  'norm'),
+  data.frame(STAT_w36_F1y_csec, time =  300, type =  'Fecal', delivery =  'csec'),
+  data.frame(STAT_w36_F1y_norm, time =  300, type =  'Fecal', delivery =  'norm'),
+  data.frame(STAT_w36_T1m_csec, time =  30, type =  'Airways', delivery =  'csec'),
+  data.frame(STAT_w36_T1m_norm, time =  30, type =  'Airways', delivery =  'norm'),
+  data.frame(STAT_w36_T1w_csec, time =  7, type =  'Airways', delivery =  'csec'),
+  data.frame(STAT_w36_T1w_norm, time =  7, type =  'Airways', delivery =  'norm'),
+  data.frame(STAT_w36_T3m_csec, time =  90, type =  'Airways', delivery =  'csec'),
+  data.frame(STAT_w36_T3m_norm, time =  90, type =  'Airways', delivery =  'norm'),
+  data.frame(STAT_w36_F1m_csec_planned, time = 30, type = 'Fecal', delivery = 'csec_planned'),
+  data.frame(STAT_w36_F1w_csec_planned, time = 7, type = 'Fecal', delivery = 'csec_planned'),
+  data.frame(STAT_w36_F1y_csec_planned, time = 300, type = 'Fecal', delivery = 'csec_planned'),
+  data.frame(STAT_w36_T1w_csec_planned, time = 7, type = 'Airways', delivery = 'csec_planned'),
+  data.frame(STAT_w36_T1m_csec_planned, time = 30, type = 'Airways', delivery = 'csec_planned'),
+  data.frame(STAT_w36_T3m_csec_planned, time = 90, type = 'Airways', delivery = 'csec_planned'),
+  data.frame(STAT_w36_F1m_csec_acute, time = 30, type = 'Fecal', delivery = 'csec_acute'),
+  data.frame(STAT_w36_F1w_csec_acute, time = 7, type = 'Fecal', delivery = 'csec_acute'),
+  data.frame(STAT_w36_F1y_csec_acute, time = 300, type = 'Fecal', delivery = 'csec_acute'),
+  data.frame(STAT_w36_T1w_csec_acute, time = 7, type = 'Airways', delivery = 'csec_acute'),
+  data.frame(STAT_w36_T1m_csec_acute, time = 30, type = 'Airways', delivery = 'csec_acute'),
+  data.frame(STAT_w36_T3m_csec_acute, time = 90, type = 'Airways', delivery = 'csec_acute'))
+
+TAXtb <- data.frame(tax_table(phyX))
+
+tbsel <- STATtot %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  group_by(Order,time,type,delivery) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(Order) %>%
+  summarise(nmin = min(n),
+            nmax = max(n)) %>%
+  ungroup() %>%
+  left_join(TAXtb[!duplicated(TAXtb$Order),1:5], by = c(Order= 'Order'))
+
+STATtot$Order2 <- STATtot$Order %>% as.character()
+STATtot$Order2[STATtot$Order %in% tbsel$Order[tbsel$nmin<5]] <- STATtot$Phylum[STATtot$Order %in% tbsel$Order[tbsel$nmin<5]] %>% as.character()
+ttb <- table(STATtot$Order2)
+ttb <- ttb[order(ttb,decreasing = T)]
+
+STATtot$Order3 <- STATtot$Order2
+STATtot$Order3[STATtot$Order2 %in% names(ttb[10:length(ttb)])] <- 'other'
+STATtot$Order3 <- factor(STATtot$Order3, levels = c(names(ttb[1:9]),"other"))
+
+legend_names <- as.character(levels(STATtot$Order3))
+
+cols  <- c(brewer.pal(8,"Set1"),brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray") 
+cols <- c(cols[1:(length(legend_names)-1)],'gray')
+save(file = "./STATtot.RData",list = c('STATtot','legend_names','cols','TAXtb'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**STATtot.RData** contains the formated transfer results as well as supporting tables and lists
+
+#### 3.1.2.3 - Overview of testable ASVs
+Table 1 - testable ASV's 
+
+```{r transfer_asv_overview,eval=TRUE}
+load(file = './STATtot.RData')
+
+getFDR <- function(x){
+  nASV = dim(x)[1] 
+  relativeAbuM <- 100*sum(x$abuMrel)
+  relativeAbuC <-  100*sum(x$abuCrel)
+  pv <- x$Fisher_p.value
+  pvadj <- p.adjust(pv, 'fdr')
+  pmin = min(pv)
+  pminadj = min(pvadj)
+  n_crude_below_01 = sum(pv<=0.01)
+  n_crude_below_05 = sum(pv<=0.05)
+  n_fdr_below_10 = sum(pvadj<=0.1)
+  n_fdr_below_05= sum(pvadj<=0.05)
+  df <- data.frame(nASV,relativeAbuM,relativeAbuC,
+                   pmin,pminadj,
+                   n_crude_below_01,n_crude_below_05,
+                   n_fdr_below_05,n_fdr_below_10)
+  df
+}
+ttb <- STATtot %>%
+  filter(delivery %in% c("norm","csec")) %>%
+  group_by(delivery, time,type) %>%
+  do(getFDR(x = .))
+
+kable(ttb,caption = 'Table1: Individual transfermodels, coverage of testable ASVs and strongest results', digits = 3)
+rio::export(ttb,file = 'Table1.xlsx')
+
+ttb_split <- STATtot %>%
+  filter(delivery %in% c("csec_acute","csec_planned")) %>%
+  group_by(delivery, time,type) %>%
+  do(getFDR(x = .))
+
+kable(ttb_split,caption = 'Individual transfermodels, coverage of testable ASVs and strongest results for acute and planned CS', digits = 3)
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+#### 3.1.2.4 - ASVs with significant transfer odds
+```{r transfer_asv_significant,eval=TRUE}
+load(file = './STATtot.RData')
+
+getFDR <- function(x){
+  nASV = dim(x)[1] 
+  relativeAbuM <- 100*sum(x$abuMrel)
+  relativeAbuC <-  100*sum(x$abuCrel)
+  pv <- x$Fisher_p.value
+  pvadj <- p.adjust(pv, 'fdr')
+  pmin = min(pv)
+  pminadj = min(pvadj)
+  n_crude_below_01 = sum(pv<=0.01)
+  n_crude_below_05 = sum(pv<=0.05)
+  n_fdr_below_10 = sum(pvadj<=0.1)
+  n_fdr_below_05= sum(pvadj<=0.05)
+  df <- data.frame(nASV,relativeAbuM,relativeAbuC,
+                   pmin,pminadj,
+                   n_crude_below_01,n_crude_below_05,
+                   n_fdr_below_05,n_fdr_below_10)
+  df
+}
+ttb <- STATtot %>%
+  group_by(delivery, time,type) %>%
+  do(getFDR(x = .))
+
+# Identify significant OTUs
+sig.groups  <- ttb[ttb$n_fdr_below_05 != 0,c("delivery","time","type")]
+
+sig.otu <- STATtot[STATtot$type == "Empty",] # creates an empty table as no row has type == "Empty"
+sig.otu$padj <- numeric()
+for (i in 1:nrow(sig.groups)){
+  tmp.stat <- STATtot[STATtot$delivery == sig.groups$delivery[i] & STATtot$time == sig.groups$time[i] & STATtot$type == sig.groups$type[i],] 
+  tmp.stat$padj <- p.adjust(tmp.stat$Fisher_p.value,'fdr')
+  sig.otu <- rbind(sig.otu,tmp.stat[tmp.stat$padj < 0.05,])
+}
+
+sig.df <- sig.otu[,c(38:40,16:19,42,25:31,1)] %>%
+  arrange(delivery,time,type)
+kable(sig.df,caption = 'Transfer models that were significant after FDR correction', digits = 5,row.names = F)
+
+sig.df.long <- STATtot[STATtot$otu %in% sig.otu$otu,c(1,38:40,16:19)] %>%
+  arrange(otu,delivery,time,type)
+for (i in 1:nrow(sig.df.long)){
+  tmp.stat <- STATtot[STATtot$delivery == sig.df.long$delivery[i] & STATtot$time == sig.df.long$time[i] & STATtot$type == sig.df.long$type[i],] 
+  tmp.stat$padj <- p.adjust(tmp.stat$Fisher_p.value,'fdr')
+  sig.df.long$pval[i] <- tmp.stat$Fisher_p.value[tmp.stat$otu == sig.df.long$otu[i]]
+  sig.df.long$padj[i] <- tmp.stat$padj[tmp.stat$otu == sig.df.long$otu[i]]
+}
+kable(sig.df.long,caption = 'All transfer models for above mentioned ASVs', digits = 5,row.names = F)
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 3.1.3 - Plot ASV transfer odds
+The odds for transfer between mother (week 36) and child. Top panel shows the OR (x-axis) and the strength (p-value). Lower panel shows OR (y-axis) versus the population wide vaginal abundance (x-axis). This shows, that 1) there is trend of transfer from more ASV's being positive (OR>1) than negative, more signal in fecal, and that those which obtain the strongest tranfer results are those which are in low populationwide vaginal abundance. 
+
+#### 3.1.3.1 - Figure S3a - vaginal delivery
+
+```{r fig_S3a,eval=TRUE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+DF <- STATtot %>%
+#  filter(time==7 & delivery=='norm')
+  filter(delivery=='norm')
+
+n_labels <- 20
+DFlab <- DF %>%
+  filter(Fisher_p.value<0.05) %>%
+  arrange(round(log10(Fisher_p.value)), -abuC) 
+nn <- dim(DFlab)[1]
+
+g1 <- 
+  ggplot(data = DF,aes(x = Fisher_estimatetr,y = -log10(Fisher_p.value),color = Order3,label = otu,size = abuCrel))+ 
+  geom_point() + 
+#  facet_wrap(~type) + 
+  facet_wrap(type~time) + 
+  geom_text_repel(color = 'black',fill = NA,data = DFlab[1:min(nn,n_labels),],size = 3) + 
+  geom_hline(yintercept = -log10(0.05)) + theme_bw() +
+  scale_size(guide = "none") +
+  scale_color_manual(values = cols,labels = legend_names) + 
+  geom_vline(xintercept = 1) + 
+  scale_x_log10() +
+  labs(col = '')+
+  guides(colour = guide_legend(override.aes = list(size=5))) + 
+  theme(legend.position = 'bottom') + xlab('Odds ratio')
+
+# Set data
+df <- DF
+# Calculate trend line for type
+tb <- df %>%
+#  group_by(type) %>%
+  group_by(type,time) %>%
+  do(lm(data = ., log10(Fisher_estimatetr)~log10(abuMrel),weights = -log10(Fisher_p.value)) %>% tidy) %>%
+  select(term,estimate) %>%
+  spread(term,estimate) %>%
+  rename(a = `(Intercept)`, 
+         b = `log10(abuMrel)`)
+
+g11 <- ggplot(data = df,
+              aes(x = abuMrel,y =  Fisher_estimatetr,color = Order3, label = otu)) +
+  geom_point(size = 3) +
+#  facet_wrap(~type)  + 
+  facet_wrap(type~time)  + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  geom_abline(data = tb, aes(intercept = a, slope = b)) + 
+  geom_hline(yintercept = 1) + 
+  scale_color_manual(values = cols,labels = legend_names)  + xlab('Population Abundance Vaginal') + ylab('Odds ratio')
+
+legend <- g_legend(g1) 
+
+G1 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, .55, 1, .45) + 
+  draw_plot(g11 + mytheme+ theme(legend.position = "hidden"), 0, 0.1, 1, .45)+
+  draw_grob(legend, 0, 0, 1, .1) 
+print(G1)
+
+pdf('FigureS3a.pdf', height = 13, width = 13)
+G1
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+
+#### 3.1.3.2 - Figure S3b - sectio delivery
+```{r fig_S3b, eval=TRUE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+DF <- STATtot %>%
+#  filter(time==7 & delivery=='csec')
+  filter(delivery=='csec')
+
+n_labels <- 20
+DFlab <- DF %>%
+  filter(Fisher_p.value<0.05) %>%
+  arrange(round(log10(Fisher_p.value)), -abuC) 
+nn <- dim(DFlab)[1]
+
+g1 <- 
+  ggplot(data = DF,aes(x = Fisher_estimatetr,y = -log10(Fisher_p.value),color = Order3,label = otu,size = abuCrel))+ 
+  geom_point() + 
+#  facet_wrap(~type) + 
+  facet_wrap(type~time) + 
+  geom_text_repel(color = 'black',fill = NA,data = DFlab[1:min(nn,n_labels),],size = 3) + 
+  geom_hline(yintercept = -log10(0.05)) + theme_bw() +
+  scale_size(guide = "none") +
+  scale_color_manual(values = cols,labels = legend_names) + 
+  geom_vline(xintercept = 1) + 
+  scale_x_log10() +
+  labs(col = '')+
+  guides(colour = guide_legend(override.aes = list(size=5))) + 
+  theme(legend.position = 'bottom') + xlab('Odds ratio')
+
+
+# Set data
+df <- DF
+# Calculate trend line for type
+tb <- df %>%
+#  group_by(type) %>%
+  group_by(type,time) %>%
+  do(lm(data = ., log10(Fisher_estimatetr)~log10(abuMrel),weights = -log10(Fisher_p.value)) %>% tidy) %>%
+  select(term,estimate) %>%
+  spread(term,estimate) %>%
+  rename(a = `(Intercept)`, 
+         b = `log10(abuMrel)`)
+
+g11 <- ggplot(data = df,
+              aes(x = abuMrel,y =  Fisher_estimatetr,color = Order3, label = otu)) +
+  geom_point(size = 3) +
+#  facet_wrap(~type)  + 
+  facet_wrap(type~time)  + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  geom_abline(data = tb, aes(intercept = a, slope = b)) + 
+  geom_hline(yintercept = 1) + 
+  scale_color_manual(values = cols,labels = legend_names)  + xlab('Population Abundance Vaginal') + ylab('Odds ratio')
+
+legend <- g_legend(g1) 
+
+G2 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, .55, 1, .45) + 
+  draw_plot(g11 + mytheme+ theme(legend.position = "hidden"), 0, 0.1, 1, .45)+
+  draw_grob(legend, 0, 0, 1, .1) 
+print(G2)
+
+pdf('FigureS3b.pdf', height = 13, width = 13)
+G2
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+#### 3.1.3.3 - Figure S3c - Acute sectio delivery
+
+```{r fig_S3c, eval=TRUE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+DF <- STATtot %>%
+  #filter(time==7 & delivery=='csec_acute')
+  filter(delivery=='csec_acute')
+
+n_labels <- 20
+DFlab <- DF %>%
+  filter(Fisher_p.value<0.05) %>%
+  arrange(round(log10(Fisher_p.value)), -abuC) 
+nn <- dim(DFlab)[1]
+
+g1 <- 
+  ggplot(data = DF,aes(x = Fisher_estimatetr,y = -log10(Fisher_p.value),color = Order3,label = otu,size = abuCrel))+ 
+  geom_point() + 
+  #facet_wrap(~type) + 
+  facet_wrap(type~time) + 
+  geom_text_repel(color = 'black',fill = NA,data = DFlab[1:min(nn,n_labels),],size = 3) + 
+  geom_hline(yintercept = -log10(0.05)) + theme_bw() +
+  scale_size(guide = "none") +
+  scale_color_manual(values = cols,labels = legend_names) + 
+  geom_vline(xintercept = 1) + 
+  scale_x_log10() +
+  labs(col = '')+
+  guides(colour = guide_legend(override.aes = list(size=5))) + 
+  theme(legend.position = 'bottom') + xlab('Odds ratio')
+
+
+# Set data
+df <- DF
+# Calculate trend line for type
+tb <- df %>%
+#  group_by(type) %>%
+  group_by(type,time) %>%
+  do(lm(data = ., log10(Fisher_estimatetr)~log10(abuMrel),weights = -log10(Fisher_p.value)) %>% tidy) %>%
+  select(term,estimate) %>%
+  spread(term,estimate) %>%
+  rename(a = `(Intercept)`, 
+         b = `log10(abuMrel)`)
+
+g11 <- ggplot(data = df,
+              aes(x = abuMrel,y =  Fisher_estimatetr, label = otu)) +
+  geom_point(size = 3, aes(color = Order3)) +
+  #facet_wrap(~type)  + 
+  facet_wrap(type~time)  + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  #stat_smooth(method = "lm",se=FALSE) +
+  geom_abline(data = tb, aes(intercept = a, slope = b)) + 
+  geom_hline(yintercept = 1) + 
+  scale_color_manual(values = cols,labels = legend_names)  + xlab('Population Abundance Vaginal') + ylab('Odds ratio')
+
+legend <- g_legend(g1) 
+
+G2 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, .55, 1, .45) + 
+  draw_plot(g11 + mytheme+ theme(legend.position = "hidden"), 0, 0.1, 1, .45)+
+  draw_grob(legend, 0, 0, 1, .1) 
+print(G2)
+
+pdf('FigureS3c.pdf', height = 13, width = 13)
+G2
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+#### 3.1.3.4 - Figure S3d - Planned sectio delivery
+
+```{r fig_S3d, eval=TRUE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+DF <- STATtot %>%
+#  filter(time==7 & delivery=='csec_planned')
+  filter(delivery=='csec_planned')
+
+n_labels <- 20
+DFlab <- DF %>%
+  filter(Fisher_p.value<0.05) %>%
+  arrange(round(log10(Fisher_p.value)), -abuC) 
+nn <- dim(DFlab)[1]
+
+g1 <- 
+  ggplot(data = DF,aes(x = Fisher_estimatetr,y = -log10(Fisher_p.value),color = Order3,label = otu,size = abuCrel))+ 
+  geom_point() + 
+#  facet_wrap(~type) + 
+  facet_wrap(type~time) + 
+  geom_text_repel(color = 'black',fill = NA,data = DFlab[1:min(nn,n_labels),],size = 3) + 
+  geom_hline(yintercept = -log10(0.05)) + theme_bw() +
+  scale_size(guide = "none") +
+  scale_color_manual(values = cols,labels = legend_names) + 
+  geom_vline(xintercept = 1) + 
+  scale_x_log10() +
+  labs(col = '')+
+  guides(colour = guide_legend(override.aes = list(size=5))) + 
+  theme(legend.position = 'bottom') + xlab('Odds ratio')
+
+
+# Set data
+df <- DF
+# Calculate trend line for type
+tb <- df %>%
+#  group_by(type) %>%
+  group_by(type,time) %>%
+  do(lm(data = ., log10(Fisher_estimatetr)~log10(abuMrel),weights = -log10(Fisher_p.value)) %>% tidy) %>%
+  select(term,estimate) %>%
+  spread(term,estimate) %>%
+  rename(a = `(Intercept)`, 
+         b = `log10(abuMrel)`)
+
+g11 <- ggplot(data = df,
+              aes(x = abuMrel,y =  Fisher_estimatetr,color = Order3, label = otu)) +
+  geom_point(size = 3) +
+  # facet_wrap(~type)  + 
+  facet_wrap(type~time)  + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  geom_abline(data = tb, aes(intercept = a, slope = b)) + 
+  geom_hline(yintercept = 1) + 
+  scale_color_manual(values = cols,labels = legend_names)  + xlab('Population Abundance Vaginal') + ylab('Odds ratio')
+
+legend <- g_legend(g1) 
+
+G2 <- ggdraw() + draw_plot(g1 +  mytheme + theme(legend.position = "hidden"), 0, .55, 1, .45) + 
+  draw_plot(g11 + mytheme+ theme(legend.position = "hidden"), 0, 0.1, 1, .45)+
+  draw_grob(legend, 0, 0, 1, .1) 
+print(G2)
+
+pdf('FigureS3d.pdf', height = 13, width = 13)
+G2
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+#### 3.1.3.5 - Figure S3 statistics
+```{r, eval = T}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+tb <- STATtot %>%
+  group_by(type,delivery,time) %>%
+  do(lm(data = ., log10(Fisher_estimatetr)~log10(abuMrel),weights = -log10(Fisher_p.value)) %>% tidy) %>%
+  filter(term!='(Intercept)') %>%
+  select(-statistic)
+
+kable(tb, digits = 4,caption = 'inference for relation between odds for tranfers and population maternal abundance')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+## 3.2 - Weighted Odds Ratio
+In order to make a commen measure for the tranfer signal, a weigthed transfer ratio (WTR) for each compartment and delivery mode. WTR were defined as WP/WN, where WP = sum(-log(OR) x log(p_value)) for ASV with OR>1 and WN = sum(-log(OR) x log(p_value)) for ASV with OR<1. 
+WTR should be around 1 in case of no tranfer, and larger when present, but due to the high sparsity, the null distribution is not always centered around 1. To calculate the significance of any WTR, the dyads are scrampled to construct a null distribution for the ratio and then compared to the model ratio to calculate a p value.  
+
+### 3.2.1 - OVERALL ratio between positive and negative odds
+#### 3.2.1.1 - WTR Calculation
+
+```{r WTR_overall_calc,eval=TRUE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+load(file = './ORresults.RData')
+tbWeigtedSTATs <- STATtot %>%
+  mutate(Fisher_estimatetr = truncateZerosInf(Fisher_estimate)) %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  group_by(type,delivery,time) %>%
+  do(getWeigtedRatio(x = .)) 
+
+permstats <- rbind(
+  extractPV(permSTAT_w36_F1w_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==7 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='csec']), 
+  extractPV(permSTAT_w36_F1m_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==30 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='csec']), 
+  extractPV(permSTAT_w36_F1y_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==300 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='csec']), 
+  extractPV(permSTAT_w36_F1w_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==7 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='norm']), 
+  extractPV(permSTAT_w36_F1m_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==30 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='norm']), 
+  extractPV(permSTAT_w36_F1y_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==300 & tbWeigtedSTATs$type=='Fecal' & tbWeigtedSTATs$delivery=='norm']), 
+  extractPV(permSTAT_w36_T1w_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==7 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='csec']), 
+  extractPV(permSTAT_w36_T1m_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==30 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='csec']), 
+  extractPV(permSTAT_w36_T3m_csec, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==90 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='csec']),
+  extractPV(permSTAT_w36_T1w_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==7 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='norm']), 
+  extractPV(permSTAT_w36_T1m_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==30 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='norm']), 
+  extractPV(permSTAT_w36_T3m_norm, modelratio = tbWeigtedSTATs$ratio[tbWeigtedSTATs$time==90 & tbWeigtedSTATs$type=='Airways' & tbWeigtedSTATs$delivery=='norm']) 
+) 
+
+
+tbWeigtedSTATs <- cbind(data.frame(tbWeigtedSTATs),permstats)
+
+save(file = './RatioStats_onesided.RData',list = c('tbWeigtedSTATs'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**RatioStats_onesided.RData** contains the formatted output of this section.
+
+#### 3.2.1.2 - WTR tables and figures
+Figure 2: The figure shows time point on x-axis, ratio on y-axis color is mode of delivery and panel is compartment. The text reflects the p-value. 
+```{r WTR_overall_table_fig,eval = TRUE}
+load('./RatioStats_onesided.RData')
+load(file = './weighted_permutation_results_onesided.RData')
+source('transferFunctions.R')
+
+tbWeigtedSTATs <- tbWeigtedSTATs %>%
+  mutate(model_over_perm = modelratio/permmedian)
+
+tb1 <- kable(tbWeigtedSTATs, caption = 'Weigthed Transfer Odds as function of delivery mode, compartment and age',digits = 5)
+tb1
+
+# create Figure 2
+g1 <- ggplot(data = tbWeigtedSTATs, 
+             aes(time,modelratio,  
+                 ymin = exp(log(modelratio) - SElgratio),
+                 ymax = exp(log(modelratio) + SElgratio),
+                 color = delivery, group = delivery, label = paste('p =',pv))) + 
+  geom_line(size = 1, position = position_dodge(width = 0.1)) + 
+  geom_point(size = 2,position = position_dodge(width = 0.1)) + 
+  scale_x_log10() + 
+  scale_color_manual(values = c('red','blue')) + 
+  geom_hline(yintercept = 1) + 
+  geom_errorbar(width = 0.1,position = position_dodge(width = 0.1)) + 
+  xlab('Age (Days)') + ylab('WTR') + 
+  facet_wrap(~type) +
+  theme_bw() + 
+  theme(legend.position = 'none',panel.grid.minor = element_blank())
+
+pdf('Figure2.pdf',width = 5,height = 2.5)
+g1
+dev.off()
+
+kable(WRpermstats, digits = 2, caption = 'Inference for the difference in weigted ratios between sectio- and vaginal born children')
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+### 3.2.2 - WTR at order level
+#### 3.2.2.1 - Comparing vaginal to sectio delivery 
+##### 3.2.2.1.1 - Calculations
+```{r WTR_order_calc, eval = FALSE}
+load(file = './STATtot.RData')
+source('transferFunctions.R')
+
+# merge on large order. 
+tbsel <- STATtot %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  group_by(Order,time,type,delivery) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(Order) %>%
+  summarise(nmin = min(n),
+            nmax = max(n),
+            nzero = 12-sum(n/n)) %>%
+  ungroup() %>%
+  left_join(TAXtb[!duplicated(TAXtb$Order      ),1:4], by = c(Order= 'Order')) %>%
+  arrange(desc(nmax)) %>%
+  filter(nmax > 10 & nmin > 1 & nzero == 0)
+  
+STATtot2 <- STATtot %>% 
+  mutate(Order2 = Order %>% as.character()) %>% 
+  filter(Order2 %in% tbsel$Order) 
+
+ttb <- table(STATtot2$Order2)
+ttb <- ttb[order(ttb,decreasing = T)]
+
+tbsel <- STATtot2 %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  group_by(Order2,time,type,delivery) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(Order2) %>%
+  summarise(nmin = min(n),
+            nmax = max(n),
+            nsum = sum(n),
+            nmedian = median(n)) %>%
+  ungroup() %>%
+  arrange(desc(nsum))
+
+
+tb2 <- STATtot2 %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  group_by(Order2,time,type,delivery) %>%
+  mutate(nt = n()) %>%
+  do(getWeigtedRatio(x = .)) %>%
+  filter(!is.na(ratio) & !is.infinite(ratio)) 
+
+# get the corresponding PVs and median perm ratio
+permSTATall_df3 <- data.frame(type = c(rep('Fecal',6),rep('Airways',6)), time = c(7,30,300,7,30,300,7,30,90,7,30,90), delivery =as.character(c( rep('csec',3),rep('norm',3))))
+
+permSTATall <- list(permSTAT_w36_F1w_csec,
+                    permSTAT_w36_F1m_csec,
+                    permSTAT_w36_F1y_csec,
+                    permSTAT_w36_F1w_norm,
+                    permSTAT_w36_F1m_norm,
+                    permSTAT_w36_F1y_norm,
+                    permSTAT_w36_T1w_csec,
+                    permSTAT_w36_T1m_csec,
+                    permSTAT_w36_T3m_csec,
+                    permSTAT_w36_T1w_norm,
+                    permSTAT_w36_T1m_norm,
+                    permSTAT_w36_T3m_norm)
+
+permstat_df3 <- c()
+for (i in 1:dim(tb2)[1]){
+  print(i)
+  rw <- tb2[i,]
+  ASVsel <- unique(STATtot2$otu[STATtot2$Order2==rw$Order2])
+  idL <- permSTATall_df3$type==rw$type & permSTATall_df3$time==rw$time & permSTATall_df3$delivery==as.character(rw$delivery) 
+  permSTAT <- permSTATall[[which(idL)]]
+  permSTAT <- permSTAT[dimnames(permSTAT)[[1]] %in% ASVsel,,]
+  permstat_df3 <- rbind(permstat_df3,data.frame(extractPV(permSTAT,modelratio = rw$ratio),nASVs = dim(permSTAT)[1]))
+}
+
+OrderWRstats <- cbind(data.frame(tb2),permstat_df3) 
+save(file = './OrderRatioSTATs.RData',list = c('OrderWRstats','tbsel','STATtot2'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**OrderRatioSTATs.RData** contains the WTR at order level for vaginal and CS deliveries
+
+##### 3.2.2.1.2 - Output
+Figure 3 - Individual taxonomic levels
+```{r WTR_order_output,eval = TRUE, fig.height=20, fig.width=5, fig.align='center'}
+load('./OrderRatioSTATs.RData')
+source('transferFunctions.R')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+kable(tbsel, caption = 'Number of ASVs for each taxonomic partitioning based on Order across all models')
+OrderWRstats <- OrderWRstats %>%
+  group_by(Order2) %>%
+  mutate(nASVs_fam = mean(nASVs)) %>%
+  ungroup %>%
+  group_by(Order2, type, delivery) %>%
+  mutate(nASVs_order_type = mean(nASVs)) %>%
+  ungroup %>% 
+  ungroup
+  
+OrderWRstats_sel <- OrderWRstats %>%
+  mutate(modelratio_tr = truncateZerosInf(modelratio,16), 
+         Order3 = paste(str_pad(round(nASVs_order_type),2,pad = '0'),Order2,sep = '_'), 
+         Order3 = factor(Order3)) 
+
+tbb <- OrderWRstats_sel %>%
+  group_by(Order2) %>%
+  summarise(N = mean(nASVs_fam)) %>%
+  arrange(desc(N))
+
+OrderWRstats_sel$Order3 = factor(OrderWRstats_sel$Order3, rev(levels(OrderWRstats_sel$Order3)))
+OrderWRstats_sel$Order4 = factor(OrderWRstats_sel$Order2, tbb$Order2)
+
+OrderWRstats_sel %>%
+  select(-np,-nn,-ratio,-Order3) %>%
+  rio::export(x = ., file = 'Order_WR.xlsx')
+
+OrderWRstats_out <- OrderWRstats_sel[,c(1:4,8:10,12,15)]
+colnames(OrderWRstats_out) <- c("Order","Time (days)", "Compartment","Delivery","P-value","SE (log ratio)", "Permutation median", "ASVs (n)", "WTR")
+kable(OrderWRstats_out, caption = 'WTR and statistics for testable orders', digits = 3)
+
+gg <- OrderWRstats %>%
+  ggplot(data = ., aes(modelratio,permmedian)) + geom_point()
+
+plotWR <- function(df,brks = 2^c(-8:8)) {
+  df %>% 
+    group_by(Order2, time, type,delivery) %>% 
+    mutate(ymax = min(exp(log(modelratio) + SElgratio),max(brks)),
+           ymin = max(exp(log(modelratio) - SElgratio),min(brks)),
+           ASVs = factor(ifelse(nASVs_order_type>=15,'\u2265 15','< 15'), levels = c('\u2265 15','< 15'))) %>%
+  ggplot(data = ., aes(time,
+                       modelratio_tr,
+                       ymax = ymax,
+                       ymin = ymin,
+                       color = delivery, 
+                       group = delivery, 
+                       label = nASVs, 
+                       linetype = ASVs)) + 
+  geom_line(size = 1,position=position_dodge(width = 0.1)) +
+  geom_point(size = 2,position=position_dodge(width = 0.1)) + 
+  geom_errorbar(width = 0.1, size = 1, position=position_dodge(width = 0.1)) +
+  facet_grid(Order4~type) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks=brks,labels=brks, limits = c(min(brks),max(brks))) +
+  scale_color_manual(values = c('red','blue')) + 
+  geom_hline(yintercept = 1) + 
+  xlab('Age (Days)') + 
+  theme_bw() + 
+  theme(legend.position = 'bottom',panel.grid.minor = element_blank())
+}
+brks <- 2^c(-5:5)
+g3a1 <- OrderWRstats_sel %>%  filter(Order2 %in% tbb$Order2[1:5]) %>% plotWR(df = ., brks)
+g3a2 <- OrderWRstats_sel %>%  filter(Order2 %in% tbb$Order2[6:11]) %>% plotWR(df = ., brks)
+legend <- g_legend(g3a1)
+G3 <- ggdraw() +
+  draw_plot(g3a1 + ylab('WTR')+ theme(legend.position = 'none'),0,0.1,0.5,0.9) +
+  draw_plot(g3a2 + ylab('') + theme(legend.position = 'none'),0.5,0.1,0.5,0.9) +
+  draw_grob(legend, 0, 0, 1, .1) 
+
+
+pdf('Figure3_order.pdf',height = 10, width = 10)
+G3
+dev.off()
+
+G3n <- ggdraw() + 
+  draw_plot(g3a1 + ylab('WR') + geom_text(color = 'black'),0,0,0.5,1) + 
+  draw_plot(g3a2 + ylab('') + geom_text(color = 'black'),0.5,0,0.5,1) 
+
+pdf('Figure3_order_withNs.pdf',height = 10, width = 10)
+G3n
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+#### 3.2.2.2 - Comparing vaginal to planend and acute sectio delivery
+##### 3.2.2.2.1 - Calculations
+```{r WTR_order_split_calc, eval = FALSE}
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+
+# merge on large order. 
+tbsel <- STATtot %>%
+  filter(delivery !='csec') %>%
+  group_by(Order,time,type,delivery) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(Order) %>%
+  summarise(nmin = min(n),
+            nmax = max(n),
+            nzero = 18-sum(n/n)) %>%
+  ungroup() %>%
+  left_join(TAXtb[!duplicated(TAXtb$Order      ),1:4], by = c(Order= 'Order')) %>%
+  arrange(desc(nmax)) %>%
+  filter(nmin > 1 & nzero == 0)
+
+STATtot2 <- STATtot %>% 
+  mutate(Order2 = Order %>% as.character()) %>% 
+  filter(Order2 %in% tbsel$Order) 
+
+ttb <- table(STATtot2$Order2)
+ttb <- ttb[order(ttb,decreasing = T)]
+
+tbsel <- STATtot2 %>%
+  filter(delivery !='csec') %>%
+  group_by(Order2,time,type,delivery) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(Order2) %>%
+  summarise(nmin = min(n),
+            nmax = max(n),
+            nsum = sum(n),
+            nmedian = median(n)) %>%
+  ungroup() 
+
+
+tb2 <- STATtot2 %>%
+  filter(delivery !='csec') %>%
+  group_by(Order2,time,type,delivery) %>%
+  mutate(nt = n()) %>%
+  do(getWeigtedRatio(x = .)) %>%
+  filter(!is.na(ratio) & !is.infinite(ratio)) 
+
+# get the corresponding PVs and median perm ratio
+permSTATall_df2 <- data.frame(type = c(rep('Fecal',9),rep('Airways',9)), 
+                              time = c(rep(c(7,30,300),3),rep(c(7,30,90),3)), 
+                              delivery =as.character(rep(c(rep('csec_acute',3),rep('csec_planned',3),rep('norm',3))),2))
+
+
+permSTATall <- list(permSTAT_w36_F1w_csec_acute, 
+                    permSTAT_w36_F1m_csec_acute, 
+                    permSTAT_w36_F1y_csec_acute, 
+                    permSTAT_w36_F1w_csec_planned, 
+                    permSTAT_w36_F1m_csec_planned, 
+                    permSTAT_w36_F1y_csec_planned, 
+                    permSTAT_w36_F1w_norm, 
+                    permSTAT_w36_F1m_norm, 
+                    permSTAT_w36_F1y_norm, 
+                    permSTAT_w36_T1w_csec_acute, 
+                    permSTAT_w36_T1m_csec_acute, 
+                    permSTAT_w36_T3m_csec_acute, 
+                    permSTAT_w36_T1w_csec_planned, 
+                    permSTAT_w36_T1m_csec_planned, 
+                    permSTAT_w36_T3m_csec_planned, 
+                    permSTAT_w36_T1w_norm, 
+                    permSTAT_w36_T1m_norm, 
+                    permSTAT_w36_T3m_norm)
+
+permstat_df3 <- c()
+for (i in 1:dim(tb2)[1]){
+  print(i)
+  rw <- tb2[i,]
+  ASVsel <- unique(STATtot2$otu[STATtot2$Order2==rw$Order2])
+  idL <- permSTATall_df2$type==rw$type & permSTATall_df2$time==rw$time & permSTATall_df2$delivery==as.character(rw$delivery) 
+  permSTAT <- permSTATall[[which(idL)]]
+  permSTAT <- permSTAT[dimnames(permSTAT)[[1]] %in% ASVsel,,]
+  permstat_df3 <- rbind(permstat_df3,data.frame(extractPV(permSTAT,modelratio = rw$ratio),nASVs = dim(permSTAT)[1]))
+}
+
+OrderWRstats <- cbind(data.frame(tb2),permstat_df3) 
+
+save(file = './OrderRatioSTATs_split.RData',list = c('OrderWRstats','tbsel','STATtot2'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**OrderRatioSTATs_split.RData** contains the WTR at order level when sectio is split into planned and acute sectio
+
+##### 3.2.2.2.2 - Output
+Figure S4 - WTR at order level - splitting Csec
+```{r WTR_order_split_output,eval = TRUE, fig.height=20, fig.width=5, fig.align='center'}
+load('./OrderRatioSTATs_split.RData')
+source('transferFunctions.R')
+
+g_legend<-function(a.gplot){ 
+  tmp <- ggplot_gtable(ggplot_build(a.gplot)) 
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
+  legend <- tmp$grobs[[leg]] 
+  return(legend)} 
+mytheme <- theme(axis.title = element_text(size = 15), axis.text = element_text(size = 10)) + theme_bw()
+
+kable(tbsel, caption = 'Number of ASVs for each taxonomic partitioning based on Order across all models')
+OrderWRstats <- OrderWRstats %>%
+  group_by(Order2) %>%
+  mutate(nASVs_fam = mean(nASVs)) %>%
+  ungroup %>%
+  group_by(Order2, type) %>%
+  mutate(nASVs_order_type = mean(nASVs)) %>%
+  ungroup %>% 
+  group_by(Order2, type, delivery) %>%
+  mutate(nASVs_order_type_delivery = mean(nASVs)) %>%
+  ungroup %>% 
+  ungroup
+  
+OrderWRstats_sel <- OrderWRstats %>%
+  mutate(modelratio_tr = truncateZerosInf(modelratio,16), 
+         Order3 = paste(str_pad(round(nASVs_order_type),2,pad = '0'),Order2,sep = '_'), 
+         Order3 = factor(Order3)) 
+
+tbb <- OrderWRstats_sel %>%
+  group_by(Order2) %>%
+  summarise(N = mean(nASVs_fam)) %>%
+  arrange(desc(N))
+
+OrderWRstats_sel$Order3 = factor(OrderWRstats_sel$Order3, rev(levels(OrderWRstats_sel$Order3)))
+OrderWRstats_sel$Order4 = factor(OrderWRstats_sel$Order2, tbb$Order2)
+
+OrderWRstats_sel %>%
+  select(-np,-nn,-ratio,-Order3) %>%
+  rio::export(x = ., file = 'Order_split_WR.xlsx')
+
+OrderWRstats_out <- OrderWRstats_sel[,c(1:4,8:10,12,16)]
+colnames(OrderWRstats_out) <- c("Order","Time (days)", "Compartment","Delivery","P-value","SE (log ratio)", "Permutation median", "ASVs (n)", "WTR")
+kable(OrderWRstats_out, caption = 'WTR and statistics for testable orders', digits = 3)
+
+gg <- OrderWRstats %>%
+  ggplot(data = ., aes(modelratio,permmedian)) + geom_point()
+
+plotWR <- function(df,brks = 2^c(-8:8)) {
+  df %>% 
+    group_by(Order2, time, type,delivery) %>% 
+    mutate(ymax = min(exp(log(modelratio) + SElgratio),max(brks)),
+           ymin = max(exp(log(modelratio) - SElgratio),min(brks)),
+           ASVs = factor(ifelse(nASVs_order_type>=15,'\u2265 15','< 15'), levels = c('\u2265 15','< 15'))) %>%
+  ggplot(data = ., aes(time,
+                       modelratio_tr,
+                       ymax = ymax,
+                       ymin = ymin,
+                       color = delivery, 
+                       group = delivery, 
+                       label = nASVs, 
+                       linetype = ASVs)) + 
+  geom_line(size = 1,position=position_dodge(width = 0.1)) +
+  geom_point(size = 2,position=position_dodge(width = 0.1)) + 
+  geom_errorbar(width = 0.1, size = 1, position=position_dodge(width = 0.1)) +
+  facet_grid(Order4~type) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks=brks,labels=brks, limits = c(min(brks),max(brks))) + 
+  geom_hline(yintercept = 1) + 
+  xlab('Age (Days)') + 
+  theme_bw() + 
+  theme(legend.position = 'bottom',panel.grid.minor = element_blank())
+}
+brks <- 2^c(-5:5)
+g3a1 <- OrderWRstats_sel %>%  filter(Order2 %in% tbb$Order2[1:3]) %>% plotWR(df = ., brks)
+g3a2 <- OrderWRstats_sel %>%  filter(Order2 %in% tbb$Order2[4:6]) %>% plotWR(df = ., brks)
+
+legend <- g_legend(g3a1) 
+
+G3 <- ggdraw() +
+  draw_plot(g3a1 + ylab('WTR') + theme(legend.position = 'none'),0,0.1,0.5,0.9) +
+  draw_plot(g3a2 + ylab('') + theme(legend.position = 'none'),0.5,0.1,0.5,0.9) +
+  draw_grob(legend, 0, 0, 1, .1) 
+  
+
+pdf('FigureS4_split_order.pdf',height = 10, width = 10)
+G3
+dev.off()
+
+G3n <- ggdraw() + 
+  draw_plot(g3a1 + ylab('WR') + geom_text(color = 'black'),0,0,0.5,1) + 
+  draw_plot(g3a2 + ylab('') + geom_text(color = 'black'),0.5,0,0.5,1) 
+
+pdf('FigureS4_split_order_withNs.pdf',height = 10, width = 10)
+G3n
+dev.off()
+
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+
+## 3.3 - Transfer of mothers dominant ASV
+In this analysis, the vaginal dominating ASV in each mother is looked for in the corresponding child. This analysis is ASV _unspecific_ I.e. just the dominating one we look for. The figure below shows the frequency on the y-axis of the ASV in the child, color indicate delivery mode, x-axis the domination rank (1 = most dominating, 2 = second,...), label refers to p-values towards H0 of no transfer. 
+
+### 3.3.1 - Calculations
+```{r transfer_dominant_calc, eval=FALSE}
+source('transferFunctions.R')
+load(file = "./phyX_cst.RData")
+
+# library(doMC)
+nperm <- 1000
+# w36 
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36')
+sd1 <- data.frame(sample_data(phy1)) %>% mutate(delivery = DELIVERY, delivery = replace(delivery, delivery!='Normal','Sectio'))
+ph <- filter_taxa(phy1,function(x) sum(x>0)>0, TRUE)
+X1 <- data.frame(sd1,t(otu_table(ph)))
+
+# vs F week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'F')
+source('getWinnerStats.R')
+winner_w36_F1w <- tb
+
+# vs F month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'F')
+source('getWinnerStats.R')
+winner_w36_F1m <- tb
+
+# vs F year 1
+phy2 <- phyX %>% subset_samples(Time == '1y' & Type == 'F')
+source('getWinnerStats.R')
+winner_w36_F1y <- tb
+
+# vs T week 1
+phy2 <- phyX %>% subset_samples(Time == '1w' & Type == 'T')
+source('getWinnerStats.R')
+winner_w36_T1w <- tb
+
+# vs T month 1
+phy2 <- phyX %>% subset_samples(Time == '1m' & Type == 'T')
+source('getWinnerStats.R')
+winner_w36_T1m <- tb
+
+# vs T month 3
+phy2 <- phyX %>% subset_samples(Time == '3m' & Type == 'T')
+source('getWinnerStats.R')
+winner_w36_T3m <- tb
+
+## Descriptives
+
+# w36 
+phy1 <- phyX %>% subset_samples(Type=='V' & Time == '36')
+sd1 <- data.frame(sample_data(phy1)) %>% mutate(delivery = DELIVERY, delivery = replace(delivery, delivery!='Normal','Sectio'))
+ph <- filter_taxa(phy1,function(x) sum(x>0)>0, TRUE)
+X1 <- data.frame(sd1,t(otu_table(ph)))
+
+MostAbundantStats <- rbind(
+  data.frame(winner_w36_F1w,Time = 7,Type = 'Fecal'),
+  data.frame(winner_w36_F1m,Time = 30,Type = 'Fecal'),
+  data.frame(winner_w36_F1y,Time = 300,Type = 'Fecal'),
+  data.frame(winner_w36_T1w,Time = 7,Type = 'Airways'),
+  data.frame(winner_w36_T1m,Time = 30,Type = 'Airways'),
+  data.frame(winner_w36_T3m,Time = 90,Type = 'Airways'))
+
+
+save(file = './Winnerstats.RData', list = c('MostAbundantStats','X1'))
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
+**Winnerstats.RData** contains the result for transfer of mothers dominant ASVs
+
+### 3.3.2 - Output 
+```{r transfer_dominant_output,eval = TRUE}
+load('./Winnerstats.RData')
+
+g1 <- ggplot(data = MostAbundantStats,aes(rnk,prcModel*100 , color = delivery, label = pv)) + 
+  geom_point(aes(size = -log10(pv + 0.0001)))  + 
+  geom_line() +
+  geom_text(data = MostAbundantStats[MostAbundantStats$pv<1.05,],color = 'black', size = 3) + 
+  facet_wrap(~factor(Type):factor(Time)) + 
+  xlab('Most Abundant in Mothers Rank') + 
+  ylab('Percent observed in child') + 
+  theme_bw() + 
+  theme(legend.position = 'bottom')
+
+print(g1)
+
+MostAbundantStats %>%
+  select(-nC1,-niter) %>%
+  rio::export(x = ., file = 'Winner_output.xlsx')
+
+MostAbundantStats %>%
+  select(-nC1,-niter)
+
+mX1 <- X1 %>% 
+  gather(ASV,Mcount,-c(dyadnb,Time,Type,DELIVERY,delivery,CST_w36)) %>%
+  group_by(dyadnb) %>%
+  arrange(desc(Mcount)) %>%
+  mutate(rnk = 1:n()) %>%
+  filter(rnk<20) %>%
+  group_by(rnk,ASV) %>%
+  summarise(n = n()) %>%
+  ungroup %>%
+  group_by(rnk) %>%
+  arrange(desc(n)) %>%
+  mutate(ordr = 1:n()) %>%
+  filter(ordr<10 & n>10) %>%
+  ungroup %>%
+  arrange(rnk)
+
+mX1 %>% 
+  filter(rnk<5) %>%
+  data.frame() %>%
+  kable(caption = 'Ranking of ASVs. I.e. which ASVs are dominating at which rank and in how many children')
+  
+# clean environment
+rm(list = ls(all = TRUE))
+```
+
+## 3.4 - Phylogenetic tree with transfer odds
+Figure S5 - Results on the tree of life
+Here, we have the individual results shown on the phylogenetic tree (see **FigureS5_phylotree_transfer_rect.pdf**) 
+```{r,eval=FALSE}
+#############################
+source('transferFunctions.R')
+load(file = './STATtot.RData')
+load(file = './phyX_cst.RData')
+#load(file = 'OrderRatioSTATs.RData')
+
+# merge on large orders, otherwise on phylum level
+
+AA <- STATtot %>%
+  filter(Fisher_p.value<0.9) %>%
+  mutate(Fisher_estimatetr = truncateZerosInf(Fisher_estimate,10)) %>%
+  mutate(cat = paste(type,time,delivery,sep = '_')) %>%
+  select(otu,Fisher_estimatetr,cat,Order3) %>%
+  spread(cat,Fisher_estimatetr)
+
+AA <- STATtot %>%
+  filter(Fisher_p.value<0.9) %>%
+  mutate(a = ceiling(sqrt(1-Fisher_p.value)*5)+1) %>%
+  mutate(cat = paste(type,time,delivery,'a',sep = '_')) %>%
+  select(otu,a,cat,Order3) %>%
+  spread(cat,a) %>%
+  left_join(AA)
+
+
+# select which of the ASV's (in total) to include in the plotting
+xASV <- otu_table(phyX)
+
+# ic1 <- rownames(xASV) %in% AA$otu
+# ic2 <- apply(xASV>1,1,sum) > dim(xASV)[2]*0.1
+# ictaxa <- ic1 | ic2 
+ictaxa <- rownames(xASV) %in% AA$otu
+
+x <- subset_taxa(phyX,ictaxa)
+# extract tree and taxonomic info
+TREE <- phy_tree(x)
+TXtab <- as.data.frame(tax_table(x))
+
+# merge on inferential stats
+AA <- merge(TXtab,AA,by.x = 'row.names',by.y = 'otu',all = T)
+size1 <- 0
+size2 <- size1
+# initiale tree
+g3 <- ggtree(TREE,layout = 'slanted',branch.length="none")
+g3 <- g3 %<+%  AA 
+# change 'left side' labels
+g3$data$label2 <- as.character(g3$data$Species)
+
+dfg3 <- g3$data[g3$data$isTip,] %>%
+  select(x,y,label) %>%
+  left_join(STATtot, by = c('label' = 'otu')) %>%
+  filter(delivery %in% c('csec','norm')) %>%
+  mutate(xtype = ifelse(type=='Fecal',0,8),
+         xtime = ifelse(time==7,0,ifelse(time==30,1,2)), 
+         xdelivery = ifelse(delivery=='norm',0,4), 
+         xx = x + xtype + xtime + xdelivery+1, 
+         z = -log10(Fisher_estimatetr)*log10(Fisher_p.value), 
+         z = log(truncateZerosInf(10^z,10)))
+
+g3 <- g3 + 
+  geom_tile(data = dfg3,aes(xx,y,fill = z))  + 
+  scale_fill_gradient2(low = 'red',high = 'darkgreen',midpoint = 0,mid = 'white',na.value = 'grey95',name = 'weigted_OR') + 
+  geom_rug(data = g3$data[g3$data$isTip,],sides = 'r', size = 3, aes(color = Order3)) + 
+  scale_color_manual(values = cols) +
+  geom_label(data = data.frame(x = max(g3$data$x) + c(4,12, 2,6,10,14),
+                               y = max(g3$data$y)+c(14,14,rep(8,4)), 
+                               lb = c('Fecal','Airways','Vag','Csec','Vag','Csec')), 
+             aes(x,y,label = lb),size = 12) + 
+  geom_text(data = data.frame(x = max(g3$data$x) + c(1,2,3,5,6,7,9,10,11,13,14,15),
+                              y = max(g3$data$y)+3, 
+                              lb = c(rep(c('1w','1m','1y'),2),rep(c('1w','1m','3m'),2))), 
+            aes(x,y,label = lb),size = 8) + 
+  theme(legend.position="right",legend.title=element_blank())
+
+
+# g3
+pdf('./FigureS5_phylotree_transfer_rect_Order3.pdf',width = 20,height = 80)
+g3 + xlim(c(0,56)) + guides(fill =  guide_legend(title = 'wOR', keywidth = 4, keyheight = 5),
+                            color =  guide_legend(title = '', keywidth = 10, keyheight = 5, nrow = 5)) + 
+  theme(legend.position = 'top',    legend.text=element_text(size=30))
+
+
+dev.off()
+
+# clean environment
+rm(list = ls(all = TRUE))
+```
