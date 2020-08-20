@@ -36,10 +36,14 @@ library(ggplotify)
 library(reshape2)
 ```
 
-## 0.2 Download main data
-```{r download_main_data, eval=FALSE}
+## 0.2 Download main data and scripts
+```{r download_main_data, eval=TRUE}
 ### setting up the ASV data to match the formating of the initial ASV based analysis
-download.file('http://mibi.galaxy.bio.ku.dk/martin/VagTransfer/COPSACbirthmicrobiome_ASV.RData',paste(getwd(),'COPSACbirthmicrobiome_ASV.RData',sep = '/'))
+if (!file.exists("COPSACbirthmicrobiome_ASV.RData") download.file('https://github.com/mortenarendt/VagTransfer/blob/master/COPSACbirthmicrobiome_ASV.RData',paste(getwd(),'COPSACbirthmicrobiome_ASV.RData',sep = '/'))
+if (!file.exists("getTransferStats.R") download.file('https://github.com/mortenarendt/VagTransfer/blob/master/getTransferStats.R',paste(getwd(),'getTransferStats.R',sep = '/'))
+if (!file.exists("getWinnerStats.R") download.file('https://github.com/mortenarendt/VagTransfer/blob/master/getWinnerStats.R',paste(getwd(),'getWinnerStats.R',sep = '/'))
+if (!file.exists("inferenceTransferStat.R") download.file('https://github.com/mortenarendt/VagTransfer/blob/master/inferenceTransferStat.R',paste(getwd(),'inferenceTransferStat.R',sep = '/'))
+if (!file.exists("transferFunctions.R") download.file('https://github.com/mortenarendt/VagTransfer/blob/master/transferFunctions.R',paste(getwd(),'transferFunctions.R',sep = '/'))
 
 # clean environment
 rm(list = ls(all = TRUE))
