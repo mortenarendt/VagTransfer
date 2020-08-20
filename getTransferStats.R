@@ -54,19 +54,21 @@ if (nperm>0){
   dimnames(permSTAT)[[1]] <- rownames(stp)
   dimnames(permSTAT)[[2]] <- colnames(stp)
   
-  permSTATfisher <- array(dim = c(dim(STAT)[1],4,nperm))
+  permSTATfisher <- array(dim = c(dim(STAT)[1],3,nperm))
   for (i in 1:nperm){
     print(i)
     aa <- permSTAT[,,i] %>% data.frame()
     for (j in 1:dim(permSTAT)[1]){
       stp2 <- getFisher(aa[j,],doglm = F)
       # permSTATfisher[j,,i] <- c(stp2$Fisher_estimate, stp2$Fisher_p.value)
-      permSTATfisher[j,,i] <- c(stp2$Fisher_estimate,stp2$or_biascorr, stp2$Gtest_p.value, stp2$Fisher_p.value)
+      # permSTATfisher[j,,i] <- c(stp2$Fisher_estimate,stp2$or_biascorr, stp2$Gtest_p.value, stp2$Fisher_p.value)
+      permSTATfisher[j,,i] <- c(stp2$Fisher_estimate,stp2$or_biascorr, stp2$Fisher_p.value)
     }
   }
   dimnames(permSTATfisher)[[1]] <- rownames(stp)
   # dimnames(permSTATfisher)[[2]] <- c('Fisher_estimate', 'Fisher_p.value')
-  dimnames(permSTATfisher)[[2]] <- c('Fisher_estimate','or_biascorr', 'Gtest_p.value', 'Fisher_p.value')
+  # dimnames(permSTATfisher)[[2]] <- c('Fisher_estimate','or_biascorr', 'Gtest_p.value', 'Fisher_p.value')
+  dimnames(permSTATfisher)[[2]] <- c('Fisher_estimate','or_biascorr', 'Fisher_p.value')
 }
 
 STAT <- STAT %>%

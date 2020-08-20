@@ -1,4 +1,5 @@
-
+library(foreach)
+library(doParallel)
 ###### Some functions
 
 get2by2table <- function(o1,o2){
@@ -95,8 +96,8 @@ colnames(wr)[2:5] <-paste('Model',colnames(wr)[2:5],sep = '_' )
 # }
 # 
 
-registerDoMC()
-getDoParWorkers()
+doMC::registerDoMC()
+foreach::getDoParWorkers()
 
 wrperm <-foreach (jj=1:nperm,.combine = rbind) %dopar% {
   wr2 <- getRatios(o1,o2,sample(IDfactor))
