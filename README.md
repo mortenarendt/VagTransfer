@@ -1,9 +1,45 @@
 Vaginal Transfer and development
 ================
 
-In this repo, the data and code for producing the results of the manuscript *Stability of the vaginal microbiota during pregnancy and its importance for early infant colonization* by Mortensen et al (unpublished).
+In this repo, the data and code for producing the results of the
+manuscript *Stability of the vaginal microbiota during pregnancy and its
+importance for early infant colonization* by Mortensen et al (submitted
+to eLife - 2020).
 
-The **processed data** is organized in a phyloseq object to be found in *COPSACbirthmicrobiome_v2.RData*. 
-The code for running the analysis is found in the markdown document results_and_figures.md including costumized functions. Additionally, three files; getTransferStats.R, getWinnerStats.R and inferenceTransferStat.R are used for the analysis. 
+The *processed data* is organized in a phyloseq object and can be
+downloaded from
+<https://nc.copsac.com/index.php/s/foXTpYc65tBFq2k>:
 
-The **Raw sequence data** is to be found on the [COPSAC next cloud server](https://nc.copsac.com/index.php/login) with login referee1 and password as provided in the manuscript draft.  
+``` r
+download.file('https://nc.copsac.com/index.php/s/foXTpYc65tBFq2k',paste(getwd(),'COPSACbirthmicrobiome_ASV.RData',sep = '/'))
+load('COPSACbirthmicrobiome_ASV.RData')
+```
+
+The code for running the analysis is found in the markdown document
+*results\_and\_figures.md* including costumized functions. Additionally,
+three files; getTransferStats.R, getWinnerStats.R and
+inferenceTransferStat.R are used for the analysis.
+
+These are also build into an R-package *MBtransfeR*
+
+``` r
+devtools::install_github('mortenarendt/MBtransfeR')
+library(MBtransfeR)
+```
+
+The **Raw sequence data** is to be found on XX
+XX.
+
+``` r
+phy1 <- subset_samples(phyX, Type=='V' & Time == '36' & DELIVERY=='Normal')
+phy2 <- subset_samples(phyX, Type=='F' & Time == '1w' & DELIVERY=='Normal')
+```
+
+## Calculate individual transferstats
+
+Here we use only a few permutations as this is time consuming. However,
+if you want to get proper inference set nperm to at least 1000.
+
+``` r
+res <- randpermutationTransferStats(phy1, phy2, 'dyadnb', nperm = 3)
+```
