@@ -14,7 +14,7 @@ load('COPSACbirthmicrobiome_ASV.RData')
 ```
 
 The code for running the analysis is found in the markdown document
-*results\_and\_figures.md* including costumized functions. Additionally,
+*FullAnalysis.md* including costumized functions. Additionally,
 three files; getTransferStats.R, getWinnerStats.R and
 inferenceTransferStat.R are used for the analysis.
 
@@ -25,8 +25,7 @@ devtools::install_github('mortenarendt/MBtransfeR')
 library(MBtransfeR)
 ```
 
-The **Raw sequence data** is to be found on XX
-XX.
+The **Raw sequence data** is to be found on XX XX.
 
 ``` r
 phy1 <- subset_samples(phyX, Type=='V' & Time == '36' & DELIVERY=='Normal')
