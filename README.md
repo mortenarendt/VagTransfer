@@ -13,10 +13,10 @@ downloaded directly from this repo.
 load('COPSACbirthmicrobiome_ASV.RData')
 ```
 
-The code for running the analysis is found in the markdown document [FullAnalysis.md](https:://github.com/mortenarendt/VagTransfer/FullAnalysis.md) including costumized functions. Additionally, three files; getTransferStats.R, getWinnerStats.R and
+The code for running the analysis is found in the markdown document [FullAnalysis.md](https://github.com/mortenarendt/VagTransfer/blob/master/FullAnalysis.md) including costumized functions. Additionally, three files; getTransferStats.R, getWinnerStats.R and
 inferenceTransferStat.R are used for the analysis.
 
-These are also build into an R-package [MBtransfeR](https:://github.com/mortenarendt/MBtransfeR/)
+These are also build into an R-package [MBtransfeR](https://github.com/mortenarendt/MBtransfeR)
 
 ``` r
 devtools::install_github('mortenarendt/MBtransfeR')
