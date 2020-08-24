@@ -7,11 +7,9 @@ importance for early infant colonization* by Mortensen et al (submitted
 to eLife - 2020).
 
 The *processed data* is organized in a phyloseq object and can be
-downloaded from
-<https://nc.copsac.com/index.php/s/foXTpYc65tBFq2k>:
+downloaded directly from this repo. 
 
 ``` r
-download.file('https://nc.copsac.com/index.php/s/foXTpYc65tBFq2k',paste(getwd(),'COPSACbirthmicrobiome_ASV.RData',sep = '/'))
 load('COPSACbirthmicrobiome_ASV.RData')
 ```
 
